@@ -1,14 +1,14 @@
 import { PromptConfig } from './types';
 
-// 默认提示词配置
+// Default prompt configuration
 export const DEFAULT_PROMPTS: PromptConfig = {
-  ArrowUp: '解释这段代码',
-  ArrowDown: '优化一下',
-  ArrowLeft: '修复这个bug',
-  ArrowRight: '换成中文'
+  ArrowUp: 'Explain this code',
+  ArrowDown: 'Optimize this',
+  ArrowLeft: 'Fix this bug',
+  ArrowRight: 'Translate to Chinese'
 };
 
-// 默认扩展配置
+// Default extension configuration
 export const DEFAULT_CONFIG = {
   enabled: true,
   prompts: DEFAULT_PROMPTS,
@@ -16,5 +16,5 @@ export const DEFAULT_CONFIG = {
   isPro: false
 };
 
-// 支持的方向键
+// Supported arrow keys
 export const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];

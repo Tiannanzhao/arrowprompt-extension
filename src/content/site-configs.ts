@@ -1,6 +1,6 @@
 import { SiteConfig } from '../utils/types';
 
-// 支持的网站配置
+// Supported site configurations
 export const SITE_CONFIGS: Record<string, SiteConfig> = {
   'claude.ai': {
     inputSelector: 'div[contenteditable="true"], fieldset div[contenteditable="true"]',
@@ -24,7 +24,7 @@ export const SITE_CONFIGS: Record<string, SiteConfig> = {
   }
 };
 
-// 获取当前网站配置
+// Get current site configuration
 export function getCurrentSiteConfig(): SiteConfig | null {
   const hostname = window.location.hostname;
   for (const [site, config] of Object.entries(SITE_CONFIGS)) {

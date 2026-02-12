@@ -1,62 +1,62 @@
-# ArrowPrompt - AI编码快捷键插件
+# ArrowPrompt - AI Coding Shortcuts
 
-通过方向键快速发送AI提示词的Chrome扩展。
+A Chrome extension that sends AI prompts with arrow keys.
 
-## 功能
+## Features
 
-- ↑ 键：解释这段代码
-- ↓ 键：优化一下
-- ← 键：修复这个bug
-- → 键：换成中文
+- ↑ key: Explain this code
+- ↓ key: Optimize this
+- ← key: Fix this bug
+- → key: Translate to Chinese
 
-## 支持的网站
+## Supported Sites
 
 - Claude.ai
 - ChatGPT
 - Gemini
 
-## 开发
+## Development
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 开发模式
+# Development mode
 npm run dev
 
-# 构建
+# Build
 npm run build
 
-# 持续构建（文件变化自动重新构建）
+# Watch mode (auto-rebuild on changes)
 npm run watch
 ```
 
-## 安装到Chrome
+## Install in Chrome
 
-1. 运行 `npm run build`
-2. 打开 Chrome 扩展管理页面 `chrome://extensions/`
-3. 开启"开发者模式"
-4. 点击"加载已解压的扩展程序"
-5. 选择项目的 `dist` 文件夹
+1. Run `npm run build`
+2. Open Chrome extensions page `chrome://extensions/`
+3. Enable "Developer mode"
+4. Click "Load unpacked"
+5. Select the `dist` folder
 
-## 目录结构
+## Project Structure
 
 ```
 src/
-├── background/     # 后台脚本
-├── content/        # 内容脚本
-├── popup/          # 弹窗UI
-└── utils/          # 工具函数
+├── background/     # Background service worker
+├── content/        # Content script (injected into pages)
+├── popup/          # Popup UI (React)
+└── utils/          # Utility functions
 ```
 
-## 图标
+## Icons
 
-在 `public/icons/` 目录下添加以下图标文件：
+Add icon files to `public/icons/`:
 - `icon16.png` (16x16)
 - `icon48.png` (48x48)
 - `icon128.png` (128x128)
 
-## 技术栈
+## Tech Stack
 
 - React + TypeScript
 - Vite

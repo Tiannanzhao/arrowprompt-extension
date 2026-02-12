@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ArrowPrompt - AI编码快捷键",
+  "name": "ArrowPrompt - AI Coding Shortcuts",
   "version": "1.0.0",
-  "description": "方向键快速发送AI提示词，支持Claude/ChatGPT/Gemini",
+  "description": "Send AI prompts with arrow keys. Works with Claude, ChatGPT, and Gemini.",
   "permissions": [
     "storage",
     "activeTab"

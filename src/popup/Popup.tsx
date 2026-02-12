@@ -21,7 +21,7 @@ const Popup: React.FC = () => {
     setConfig({ ...config, enabled: newEnabled });
   };
 
-  if (!config) return <div>加载中...</div>;
+  if (!config) return <div>Loading...</div>;
 
   return (
     <div className="popup-container">
@@ -45,7 +45,7 @@ const Popup: React.FC = () => {
       </div>
 
       <div className={`status ${config.enabled ? 'active' : 'inactive'}`}>
-        {config.enabled ? '✓ 插件已启用' : '✗ 插件已禁用'}
+        {config.enabled ? '✓ Extension enabled' : '✗ Extension disabled'}
       </div>
     </div>
   );

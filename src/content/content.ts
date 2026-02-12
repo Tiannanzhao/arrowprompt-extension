@@ -30,10 +30,10 @@ type ArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
 
 // Constants
 const DEFAULT_PROMPTS: PromptConfig = {
-  ArrowUp: '解释这段代码',
-  ArrowDown: '优化一下',
-  ArrowLeft: '修复这个bug',
-  ArrowRight: '换成中文'
+  ArrowUp: 'Explain this code',
+  ArrowDown: 'Optimize this',
+  ArrowLeft: 'Fix this bug',
+  ArrowRight: 'Translate to Chinese'
 };
 
 const DEFAULT_CONFIG: ExtensionConfig = {
@@ -177,7 +177,7 @@ function showFeedback(key: ArrowKey, prompt: string): void {
     animation: arrowprompt-slideIn 0.3s ease;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   `;
-  feedback.textContent = `✓ ${key.replace('Arrow', '')}键: ${prompt}`;
+  feedback.textContent = `✓ ${key.replace('Arrow', '')} key: ${prompt}`;
 
   document.body.appendChild(feedback);
 
@@ -191,19 +191,19 @@ function showFeedback(key: ArrowKey, prompt: string): void {
 function handleKeyDown(event: KeyboardEvent): void {
   if (!ARROW_KEYS.includes(event.key)) return;
   if (!isEnabled) {
-    console.log('[ArrowPrompt] 插件已禁用');
+    console.log('[ArrowPrompt] Extension disabled');
     return;
   }
 
   const config = getCurrentSiteConfig();
   if (!config) {
-    console.log('[ArrowPrompt] 不支持的网站');
+    console.log('[ArrowPrompt] Unsupported website');
     return;
   }
 
   const inputElement = getInputElement();
   if (!inputElement) {
-    console.log('[ArrowPrompt] 找不到输入框');
+    console.log('[ArrowPrompt] Input field not found');
     return;
   }
 
@@ -211,7 +211,7 @@ function handleKeyDown(event: KeyboardEvent): void {
     return; // Don't intercept if there's content
   }
 
-  console.log('[ArrowPrompt] 检测到方向键:', event.key);
+  console.log('[ArrowPrompt] Arrow key detected:', event.key);
   
   event.preventDefault();
   event.stopPropagation();
@@ -221,7 +221,7 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   const inserted = insertTextToInput(inputElement, prompt, config);
   if (inserted) {
-    console.log('[ArrowPrompt] 已插入提示词:', prompt);
+    console.log('[ArrowPrompt] Prompt inserted:', prompt);
     showFeedback(event.key as ArrowKey, prompt);
     setTimeout(() => clickSendButton(config), 200);
   }
@@ -252,7 +252,7 @@ async function loadConfig(): Promise<ExtensionConfig> {
       ...config
     } as ExtensionConfig;
   } catch (error) {
-    console.error('[ArrowPrompt] 读取配置失败:', error);
+    console.error('[ArrowPrompt] Failed to load config:', error);
     return DEFAULT_CONFIG;
   }
 }
@@ -273,7 +273,7 @@ async function init(): Promise<void> {
     if (area === 'sync') {
       if (changes.enabled) {
         isEnabled = changes.enabled.newValue;
-        console.log('[ArrowPrompt] 状态已更新:', isEnabled ? '启用' : '禁用');
+        console.log('[ArrowPrompt] Status updated:', isEnabled ? 'enabled' : 'disabled');
       }
       if (changes.prompts) {
         currentConfig.prompts = changes.prompts.newValue;
@@ -282,10 +282,10 @@ async function init(): Promise<void> {
   });
 
   const siteConfig = getCurrentSiteConfig();
-  console.log('✓ ArrowPrompt 已激活');
-  console.log('[ArrowPrompt] 当前网站:', window.location.hostname);
-  console.log('[ArrowPrompt] 网站配置:', siteConfig ? '已找到' : '不支持');
-  console.log('[ArrowPrompt] 插件状态:', isEnabled ? '启用' : '禁用');
+  console.log('✓ ArrowPrompt activated');
+  console.log('[ArrowPrompt] Current site:', window.location.hostname);
+  console.log('[ArrowPrompt] Site config:', siteConfig ? 'found' : 'not supported');
+  console.log('[ArrowPrompt] Status:', isEnabled ? 'enabled' : 'disabled');
 }
 
 // Start

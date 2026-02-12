@@ -1,4 +1,4 @@
-// 提示词配置类型
+// Prompt configuration type
 export interface PromptConfig {
   ArrowUp: string;
   ArrowDown: string;
@@ -6,7 +6,7 @@ export interface PromptConfig {
   ArrowRight: string;
 }
 
-// 扩展配置类型
+// Extension configuration type
 export interface ExtensionConfig {
   enabled: boolean;
   prompts: PromptConfig;
@@ -14,12 +14,12 @@ export interface ExtensionConfig {
   isPro: boolean;
 }
 
-// 网站配置类型
+// Site configuration type
 export interface SiteConfig {
   inputSelector: string;
   sendButtonSelector: string;
   type: 'contenteditable' | 'textarea';
 }
 
-// 键盘按键类型
+// Arrow key type
 export type ArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';

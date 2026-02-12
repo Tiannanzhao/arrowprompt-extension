@@ -4,10 +4,10 @@
 'use strict';
 
 const DEFAULT_PROMPTS = {
-  ArrowUp: '解释这段代码',
-  ArrowDown: '优化一下',
-  ArrowLeft: '修复这个bug',
-  ArrowRight: '换成中文'
+  ArrowUp: 'Explain this code',
+  ArrowDown: 'Optimize this',
+  ArrowLeft: 'Fix this bug',
+  ArrowRight: 'Translate to Chinese'
 };
 
 const DEFAULT_CONFIG = {
@@ -20,7 +20,7 @@ const DEFAULT_CONFIG = {
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.sync.set(DEFAULT_CONFIG);
-  console.log('ArrowPrompt 已安装');
+  console.log('ArrowPrompt installed');
 });
 
 })(); // End IIFE
