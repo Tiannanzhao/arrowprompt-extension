@@ -1,13 +1,59 @@
-import { defineConfig } from 'vite';
+import { defineConfig, build } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
-import { copyFileSync, mkdirSync, existsSync, readdirSync, renameSync, rmSync, readFileSync, writeFileSync } from 'fs';
+import { copyFileSync, mkdirSync, existsSync, readdirSync, rmSync, readFileSync, writeFileSync } from 'fs';
+
+// Build content script and background as separate IIFE bundles
+async function buildContentScripts() {
+  // Build content script
+  await build({
+    configFile: false,
+    build: {
+      emptyOutDir: false,
+      outDir: 'dist',
+      lib: {
+        entry: resolve(__dirname, 'src/content/content.ts'),
+        name: 'ArrowPromptContent',
+        formats: ['iife'],
+        fileName: () => 'content/content.js'
+      },
+      rollupOptions: {
+        output: {
+          extend: true
+        }
+      }
+    }
+  });
+
+  // Build background script
+  await build({
+    configFile: false,
+    build: {
+      emptyOutDir: false,
+      outDir: 'dist',
+      lib: {
+        entry: resolve(__dirname, 'src/background/service-worker.ts'),
+        name: 'ArrowPromptBackground',
+        formats: ['iife'],
+        fileName: () => 'background/service-worker.js'
+      },
+      rollupOptions: {
+        output: {
+          extend: true
+        }
+      }
+    }
+  });
+}
 
 // Plugin to copy manifest and icons after build
 function copyExtensionFiles() {
   return {
     name: 'copy-extension-files',
-    closeBundle() {
+    async closeBundle() {
+      // Build content scripts as IIFE
+      await buildContentScripts();
+      
       // Copy manifest.json
       copyFileSync('manifest.json', 'dist/manifest.json');
       
@@ -15,16 +61,10 @@ function copyExtensionFiles() {
       const srcHtml = 'dist/src/popup/index.html';
       const destHtml = 'dist/popup/index.html';
       if (existsSync(srcHtml)) {
-        // Read and update HTML to fix paths for Chrome extension
-        // Original paths are relative from dist/src/popup/ (e.g., ../../popup/popup.js)
-        // Target paths should be relative from dist/popup/
         let html = readFileSync(srcHtml, 'utf-8');
-        // ../../popup/popup.js -> ./popup.js (from dist/popup/)
         html = html.replace(/\.\.\/\.\.\/popup\//g, './');
-        // ../../chunks/ -> ../chunks/ (from dist/popup/)
         html = html.replace(/\.\.\/\.\.\/chunks\//g, '../chunks/');
         writeFileSync(destHtml, html);
-        // Clean up src directory
         rmSync('dist/src', { recursive: true, force: true });
       }
       
@@ -55,22 +95,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'src/popup/index.html'),
-        content: resolve(__dirname, 'src/content/content.ts'),
-        background: resolve(__dirname, 'src/background/service-worker.ts'),
       },
       output: {
-        entryFileNames: (chunkInfo) => {
-          if (chunkInfo.name === 'popup') {
-            return 'popup/popup.js';
-          }
-          if (chunkInfo.name === 'content') {
-            return 'content/content.js';
-          }
-          if (chunkInfo.name === 'background') {
-            return 'background/service-worker.js';
-          }
-          return '[name].js';
-        },
+        entryFileNames: 'popup/popup.js',
         chunkFileNames: 'chunks/[name].js',
         assetFileNames: (assetInfo) => {
           if (assetInfo.name?.endsWith('.css')) {

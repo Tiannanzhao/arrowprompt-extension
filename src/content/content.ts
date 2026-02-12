@@ -1,30 +1,118 @@
-import { StorageManager } from '../utils/storage';
-import { getCurrentSiteConfig } from './site-configs';
-import { ArrowKey, ExtensionConfig, SiteConfig } from '../utils/types';
-import { ARROW_KEYS } from '../utils/constants';
+// ============================================
+// ArrowPrompt Content Script (Self-contained)
+// ============================================
 
+(function() {
+'use strict';
+
+// Types
+interface PromptConfig {
+  ArrowUp: string;
+  ArrowDown: string;
+  ArrowLeft: string;
+  ArrowRight: string;
+}
+
+interface ExtensionConfig {
+  enabled: boolean;
+  prompts: PromptConfig;
+  version: string;
+  isPro: boolean;
+}
+
+interface SiteConfig {
+  inputSelector: string;
+  sendButtonSelector: string;
+  type: 'contenteditable' | 'textarea';
+}
+
+type ArrowKey = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
+
+// Constants
+const DEFAULT_PROMPTS: PromptConfig = {
+  ArrowUp: '解释这段代码',
+  ArrowDown: '优化一下',
+  ArrowLeft: '修复这个bug',
+  ArrowRight: '换成中文'
+};
+
+const DEFAULT_CONFIG: ExtensionConfig = {
+  enabled: true,
+  prompts: DEFAULT_PROMPTS,
+  version: '1.0.0',
+  isPro: false
+};
+
+const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+
+// Site configurations
+const SITE_CONFIGS: Record<string, SiteConfig> = {
+  'claude.ai': {
+    inputSelector: 'div[contenteditable="true"], fieldset div[contenteditable="true"]',
+    sendButtonSelector: 'button[aria-label*="发送"], button[aria-label*="Send"], button[type="submit"]',
+    type: 'contenteditable'
+  },
+  'chat.openai.com': {
+    inputSelector: '#prompt-textarea, textarea[data-id="root"]',
+    sendButtonSelector: 'button[data-testid="send-button"], button[aria-label*="Send"]',
+    type: 'textarea'
+  },
+  'chatgpt.com': {
+    inputSelector: '#prompt-textarea, textarea[data-id="root"]',
+    sendButtonSelector: 'button[data-testid="send-button"], button[aria-label*="Send"]',
+    type: 'textarea'
+  },
+  'gemini.google.com': {
+    inputSelector: '.ql-editor[contenteditable="true"], div[contenteditable="true"][aria-label], rich-textarea div[contenteditable="true"]',
+    sendButtonSelector: 'button[aria-label*="Send"], button[aria-label*="发送"], button.send-button',
+    type: 'contenteditable'
+  }
+};
+
+// State
 let isEnabled = true;
-let currentConfig: ExtensionConfig;
+let currentConfig: ExtensionConfig = DEFAULT_CONFIG;
 
-// 获取输入框元素
+// Get current site config
+function getCurrentSiteConfig(): SiteConfig | null {
+  const hostname = window.location.hostname;
+  for (const [site, config] of Object.entries(SITE_CONFIGS)) {
+    if (hostname.includes(site)) {
+      return config;
+    }
+  }
+  return null;
+}
+
+// Get input element
 function getInputElement(): HTMLElement | null {
   const config = getCurrentSiteConfig();
   if (!config) return null;
   return document.querySelector(config.inputSelector);
 }
 
-// 插入文本到输入框
+// Check if input is empty
+function isInputEmpty(element: HTMLElement, config: SiteConfig): boolean {
+  if (config.type === 'contenteditable') {
+    const text = element.textContent || element.innerText || '';
+    return text.trim() === '';
+  } else {
+    const value = (element as HTMLTextAreaElement).value || '';
+    return value.trim() === '';
+  }
+}
+
+// Insert text into input
 function insertTextToInput(element: HTMLElement, text: string, config: SiteConfig): boolean {
   if (!element) return false;
 
   element.focus();
 
   if (config.type === 'contenteditable') {
-    // 清空并插入新内容
     element.innerHTML = '';
     element.textContent = text;
     
-    // 将光标移到末尾
+    // Move cursor to end
     const range = document.createRange();
     const sel = window.getSelection();
     range.selectNodeContents(element);
@@ -32,7 +120,7 @@ function insertTextToInput(element: HTMLElement, text: string, config: SiteConfi
     sel?.removeAllRanges();
     sel?.addRange(range);
     
-    // 触发输入事件
+    // Trigger input event
     element.dispatchEvent(new InputEvent('input', { 
       bubbles: true, 
       cancelable: true,
@@ -42,7 +130,6 @@ function insertTextToInput(element: HTMLElement, text: string, config: SiteConfi
   } else if (config.type === 'textarea') {
     const textarea = element as HTMLTextAreaElement;
     
-    // 触发React的onChange - 使用原生setter
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
       window.HTMLTextAreaElement.prototype,
       'value'
@@ -54,18 +141,16 @@ function insertTextToInput(element: HTMLElement, text: string, config: SiteConfi
       textarea.value = text;
     }
     
-    // 触发事件
     element.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
-  // 通用事件触发
   element.dispatchEvent(new Event('change', { bubbles: true }));
   element.dispatchEvent(new Event('keyup', { bubbles: true }));
 
   return true;
 }
 
-// 点击发送按钮
+// Click send button
 function clickSendButton(config: SiteConfig): boolean {
   const sendButton = document.querySelector(config.sendButtonSelector) as HTMLButtonElement;
   if (sendButton && !sendButton.disabled) {
@@ -75,7 +160,7 @@ function clickSendButton(config: SiteConfig): boolean {
   return false;
 }
 
-// 显示反馈
+// Show feedback
 function showFeedback(key: ArrowKey, prompt: string): void {
   const feedback = document.createElement('div');
   feedback.style.cssText = `
@@ -89,30 +174,20 @@ function showFeedback(key: ArrowKey, prompt: string): void {
     font-size: 14px;
     z-index: 999999;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    animation: slideIn 0.3s ease;
+    animation: arrowprompt-slideIn 0.3s ease;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   `;
   feedback.textContent = `✓ ${key.replace('Arrow', '')}键: ${prompt}`;
 
   document.body.appendChild(feedback);
 
   setTimeout(() => {
-    feedback.style.animation = 'slideOut 0.3s ease';
+    feedback.style.animation = 'arrowprompt-slideOut 0.3s ease';
     setTimeout(() => feedback.remove(), 300);
   }, 2000);
 }
 
-// 检查输入框是否为空
-function isInputEmpty(element: HTMLElement, config: SiteConfig): boolean {
-  if (config.type === 'contenteditable') {
-    const text = element.textContent || element.innerText || '';
-    return text.trim() === '';
-  } else {
-    const value = (element as HTMLTextAreaElement).value || '';
-    return value.trim() === '';
-  }
-}
-
-// 键盘事件处理
+// Keyboard event handler
 function handleKeyDown(event: KeyboardEvent): void {
   if (!ARROW_KEYS.includes(event.key)) return;
   if (!isEnabled) {
@@ -128,14 +203,12 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   const inputElement = getInputElement();
   if (!inputElement) {
-    console.log('[ArrowPrompt] 找不到输入框，选择器:', config.inputSelector);
+    console.log('[ArrowPrompt] 找不到输入框');
     return;
   }
 
-  // 检查输入框是否为空
   if (!isInputEmpty(inputElement, config)) {
-    // 有内容时不拦截，让正常的方向键功能工作
-    return;
+    return; // Don't intercept if there's content
   }
 
   console.log('[ArrowPrompt] 检测到方向键:', event.key);
@@ -150,44 +223,61 @@ function handleKeyDown(event: KeyboardEvent): void {
   if (inserted) {
     console.log('[ArrowPrompt] 已插入提示词:', prompt);
     showFeedback(event.key as ArrowKey, prompt);
-    // 延迟点击发送按钮，给页面时间更新状态
     setTimeout(() => clickSendButton(config), 200);
   }
 }
 
-// 添加CSS动画
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  @keyframes slideOut {
-    from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(100%); opacity: 0; }
-  }
-`;
-document.head.appendChild(style);
+// Add CSS animations
+function addStyles(): void {
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes arrowprompt-slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes arrowprompt-slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
-// 初始化
-async function init() {
-  currentConfig = await StorageManager.loadConfig();
+// Load config from storage
+async function loadConfig(): Promise<ExtensionConfig> {
+  try {
+    const config = await chrome.storage.sync.get(null);
+    return {
+      ...DEFAULT_CONFIG,
+      ...config
+    } as ExtensionConfig;
+  } catch (error) {
+    console.error('[ArrowPrompt] 读取配置失败:', error);
+    return DEFAULT_CONFIG;
+  }
+}
+
+// Initialize
+async function init(): Promise<void> {
+  addStyles();
+  
+  currentConfig = await loadConfig();
   isEnabled = currentConfig.enabled;
 
-  // 使用capture阶段捕获键盘事件
+  // Listen for keyboard events
   document.addEventListener('keydown', handleKeyDown, true);
-  
-  // 也监听window级别的事件
   window.addEventListener('keydown', handleKeyDown, true);
 
-  // 监听配置变化
-  StorageManager.onConfigChange((changes) => {
-    if (changes.enabled) {
-      isEnabled = changes.enabled.newValue;
-      console.log('[ArrowPrompt] 状态已更新:', isEnabled ? '启用' : '禁用');
-    }
-    if (changes.prompts) {
-      currentConfig.prompts = changes.prompts.newValue;
+  // Listen for config changes
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync') {
+      if (changes.enabled) {
+        isEnabled = changes.enabled.newValue;
+        console.log('[ArrowPrompt] 状态已更新:', isEnabled ? '启用' : '禁用');
+      }
+      if (changes.prompts) {
+        currentConfig.prompts = changes.prompts.newValue;
+      }
     }
   });
 
@@ -198,9 +288,11 @@ async function init() {
   console.log('[ArrowPrompt] 插件状态:', isEnabled ? '启用' : '禁用');
 }
 
-// 启动
+// Start
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
 }
+
+})(); // End IIFE
