@@ -20,21 +20,47 @@ function insertTextToInput(element: HTMLElement, text: string, config: SiteConfi
   element.focus();
 
   if (config.type === 'contenteditable') {
-    (element as HTMLDivElement).textContent = text;
-  } else if (config.type === 'textarea') {
-    (element as HTMLTextAreaElement).value = text;
+    // 清空并插入新内容
+    element.innerHTML = '';
+    element.textContent = text;
     
-    // 触发React的onChange
+    // 将光标移到末尾
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    
+    // 触发输入事件
+    element.dispatchEvent(new InputEvent('input', { 
+      bubbles: true, 
+      cancelable: true,
+      inputType: 'insertText',
+      data: text
+    }));
+  } else if (config.type === 'textarea') {
+    const textarea = element as HTMLTextAreaElement;
+    
+    // 触发React的onChange - 使用原生setter
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
       window.HTMLTextAreaElement.prototype,
       'value'
     )?.set;
-    nativeInputValueSetter?.call(element, text);
+    
+    if (nativeInputValueSetter) {
+      nativeInputValueSetter.call(textarea, text);
+    } else {
+      textarea.value = text;
+    }
+    
+    // 触发事件
+    element.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
-  // 触发事件
-  element.dispatchEvent(new Event('input', { bubbles: true }));
+  // 通用事件触发
   element.dispatchEvent(new Event('change', { bubbles: true }));
+  element.dispatchEvent(new Event('keyup', { bubbles: true }));
 
   return true;
 }
@@ -75,24 +101,45 @@ function showFeedback(key: ArrowKey, prompt: string): void {
   }, 2000);
 }
 
+// 检查输入框是否为空
+function isInputEmpty(element: HTMLElement, config: SiteConfig): boolean {
+  if (config.type === 'contenteditable') {
+    const text = element.textContent || element.innerText || '';
+    return text.trim() === '';
+  } else {
+    const value = (element as HTMLTextAreaElement).value || '';
+    return value.trim() === '';
+  }
+}
+
 // 键盘事件处理
 function handleKeyDown(event: KeyboardEvent): void {
   if (!ARROW_KEYS.includes(event.key)) return;
-  if (!isEnabled) return;
+  if (!isEnabled) {
+    console.log('[ArrowPrompt] 插件已禁用');
+    return;
+  }
 
   const config = getCurrentSiteConfig();
-  if (!config) return;
+  if (!config) {
+    console.log('[ArrowPrompt] 不支持的网站');
+    return;
+  }
 
   const inputElement = getInputElement();
-  if (!inputElement) return;
+  if (!inputElement) {
+    console.log('[ArrowPrompt] 找不到输入框，选择器:', config.inputSelector);
+    return;
+  }
 
   // 检查输入框是否为空
-  const isEmpty = 
-    (inputElement as HTMLDivElement).textContent?.trim() === '' ||
-    (inputElement as HTMLTextAreaElement).value?.trim() === '';
+  if (!isInputEmpty(inputElement, config)) {
+    // 有内容时不拦截，让正常的方向键功能工作
+    return;
+  }
 
-  if (!isEmpty) return; // 有内容时不拦截
-
+  console.log('[ArrowPrompt] 检测到方向键:', event.key);
+  
   event.preventDefault();
   event.stopPropagation();
 
@@ -101,8 +148,10 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   const inserted = insertTextToInput(inputElement, prompt, config);
   if (inserted) {
-    clickSendButton(config);
+    console.log('[ArrowPrompt] 已插入提示词:', prompt);
     showFeedback(event.key as ArrowKey, prompt);
+    // 延迟点击发送按钮，给页面时间更新状态
+    setTimeout(() => clickSendButton(config), 200);
   }
 }
 
@@ -125,19 +174,28 @@ async function init() {
   currentConfig = await StorageManager.loadConfig();
   isEnabled = currentConfig.enabled;
 
+  // 使用capture阶段捕获键盘事件
   document.addEventListener('keydown', handleKeyDown, true);
+  
+  // 也监听window级别的事件
+  window.addEventListener('keydown', handleKeyDown, true);
 
   // 监听配置变化
   StorageManager.onConfigChange((changes) => {
     if (changes.enabled) {
       isEnabled = changes.enabled.newValue;
+      console.log('[ArrowPrompt] 状态已更新:', isEnabled ? '启用' : '禁用');
     }
     if (changes.prompts) {
       currentConfig.prompts = changes.prompts.newValue;
     }
   });
 
+  const siteConfig = getCurrentSiteConfig();
   console.log('✓ ArrowPrompt 已激活');
+  console.log('[ArrowPrompt] 当前网站:', window.location.hostname);
+  console.log('[ArrowPrompt] 网站配置:', siteConfig ? '已找到' : '不支持');
+  console.log('[ArrowPrompt] 插件状态:', isEnabled ? '启用' : '禁用');
 }
 
 // 启动
