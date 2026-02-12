@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "ArrowPrompt - AI编码快捷键",
+  "version": "1.0.0",
+  "description": "方向键快速发送AI提示词，支持Claude/ChatGPT/Gemini",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://claude.ai/*",
+    "*://chat.openai.com/*",
+    "*://chatgpt.com/*",
+    "*://gemini.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://claude.ai/*",
+        "*://chat.openai.com/*",
+        "*://chatgpt.com/*",
+        "*://gemini.google.com/*"
+      ],
+      "js": ["content/content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
