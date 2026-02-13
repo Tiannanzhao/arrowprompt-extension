@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArrowPrompt — Button Preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f0f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .preview-label {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      color: #666;
+    }
+    .arrowprompt-figma-outer {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 3.54px;
+      gap: 2.02px;
+      position: relative;
+      background: linear-gradient(180deg, #E9E9E9 0%, #E9E9E9 0.01%, #FFFFFF 100%);
+      border-radius: 13.66px;
+      width: 119.37px;
+      height: 75.43px;
+    }
+    .arrowprompt-neo-button {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 8.1px;
+      width: 112.29px;
+      height: 68.35px;
+      padding: 10.63px 12.14px;
+      border: none;
+      cursor: default;
+      font: inherit;
+      background: linear-gradient(180deg, #F4F4F4 0%, #FEFEFE 100%);
+      box-shadow: 0px 0px 0.22px 0.22px rgba(0, 0, 0, 0.07), 0px 0px 0.22px 0.67px rgba(0, 0, 0, 0.05), 0px 2.7px 2.92px -1.35px rgba(0, 0, 0, 0.25), 0px 0.9px 3.6px 0.9px rgba(0, 0, 0, 0.12);
+      border-radius: 10.12px;
+    }
+    .arrowprompt-neo-button svg {
+      flex: none;
+      display: block;
+    }
+    .arrowprompt-button-text {
+      font-family: 'Product Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 400;
+      font-size: 12.14px;
+      line-height: 110%;
+      color: #06071A;
+      flex: none;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <span class="preview-label">Up key feedback (Explain this code)</span>
+  <div class="arrowprompt-figma-outer" data-key="ArrowUp">
+    <button type="button" class="arrowprompt-neo-button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+        <circle cx="13" cy="2.60001" r="2.60001" fill="#A8A8A8"/>
+        <circle cx="13" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+        <circle cx="13" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+        <circle cx="13" cy="18.2001" r="2.60001" fill="#A8A8A8"/>
+        <circle cx="13" cy="23.4001" r="2.60001" fill="#A8A8A8"/>
+        <circle cx="7.79996" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+        <circle cx="23.4001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+        <circle cx="2.60001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+        <circle cx="18.2" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+      </svg>
+      <span class="arrowprompt-button-text">Explain this code</span>
+    </button>
+  </div>
+</body>
+</html>
