@@ -90,6 +90,12 @@ input:checked + .slider:before {
   color: #666;
 }
 
+.popup-position {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #888;
+}
+
 .status {
   margin-top: 16px;
   padding: 8px;

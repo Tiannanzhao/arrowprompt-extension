@@ -53,13 +53,18 @@ const SITE_CONFIGS: Record<string, SiteConfig> = {
     type: 'contenteditable'
   },
   'chat.openai.com': {
-    inputSelector: '#prompt-textarea, textarea[data-id="root"]',
-    sendButtonSelector: 'button[data-testid="send-button"], button[aria-label*="Send"]',
+    inputSelector: '#prompt-textarea, textarea[data-id="root"], [data-testid="composer-textarea"], textarea[placeholder*="Message"], form textarea, div[contenteditable="true"][data-id], [contenteditable="true"]',
+    sendButtonSelector: 'button[data-testid="send-button"], button[aria-label*="Send"], button[type="submit"], [data-testid="send-button"]',
     type: 'textarea'
   },
   'chatgpt.com': {
-    inputSelector: '#prompt-textarea, textarea[data-id="root"]',
-    sendButtonSelector: 'button[data-testid="send-button"], button[aria-label*="Send"]',
+    inputSelector: '#prompt-textarea, textarea[data-id="root"], [data-testid="composer-textarea"], textarea[placeholder*="Message"], form textarea, div[contenteditable="true"][data-id], [contenteditable="true"]',
+    sendButtonSelector: 'button[data-testid="send-button"], button[aria-label*="Send"], button[type="submit"], [data-testid="send-button"]',
+    type: 'textarea'
+  },
+  'perplexity.ai': {
+    inputSelector: 'textarea[placeholder*="Ask"], textarea[placeholder*="Message"], textarea[placeholder*="Ask anything"], textarea, div[contenteditable="true"]',
+    sendButtonSelector: 'button[type="submit"], button[aria-label*="Send"], button[aria-label*="发送"], button[data-testid="send-button"], [aria-label*="Send"], [role="button"][aria-label*="Send"], button[class*="send"], form button[type="submit"]',
     type: 'textarea'
   },
   'gemini.google.com': {
@@ -91,9 +96,17 @@ function getInputElement(): HTMLElement | null {
   return document.querySelector(config.inputSelector);
 }
 
+// Detect input type from element (so one site can use textarea or contenteditable)
+function getInputType(element: HTMLElement): 'contenteditable' | 'textarea' {
+  if (element.tagName === 'TEXTAREA') return 'textarea';
+  if (element.getAttribute?.('contenteditable') === 'true') return 'contenteditable';
+  return 'textarea';
+}
+
 // Check if input is empty
-function isInputEmpty(element: HTMLElement, config: SiteConfig): boolean {
-  if (config.type === 'contenteditable') {
+function isInputEmpty(element: HTMLElement, _config: SiteConfig): boolean {
+  const inputType = getInputType(element);
+  if (inputType === 'contenteditable') {
     const text = element.textContent || element.innerText || '';
     return text.trim() === '';
   } else {
@@ -103,12 +116,13 @@ function isInputEmpty(element: HTMLElement, config: SiteConfig): boolean {
 }
 
 // Insert text into input
-function insertTextToInput(element: HTMLElement, text: string, config: SiteConfig): boolean {
+function insertTextToInput(element: HTMLElement, text: string, _config: SiteConfig): boolean {
   if (!element) return false;
 
   element.focus();
 
-  if (config.type === 'contenteditable') {
+  const inputType = getInputType(element);
+  if (inputType === 'contenteditable') {
     element.innerHTML = '';
     element.textContent = text;
     
@@ -127,7 +141,7 @@ function insertTextToInput(element: HTMLElement, text: string, config: SiteConfi
       inputType: 'insertText',
       data: text
     }));
-  } else if (config.type === 'textarea') {
+  } else {
     const textarea = element as HTMLTextAreaElement;
     
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -150,14 +164,36 @@ function insertTextToInput(element: HTMLElement, text: string, config: SiteConfi
   return true;
 }
 
-// Click send button
+// Click send button (tries each selector in order, comma-separated)
 function clickSendButton(config: SiteConfig): boolean {
-  const sendButton = document.querySelector(config.sendButtonSelector) as HTMLButtonElement;
-  if (sendButton && !sendButton.disabled) {
-    setTimeout(() => sendButton.click(), 100);
-    return true;
+  const selectors = config.sendButtonSelector.split(',').map(s => s.trim());
+  for (const sel of selectors) {
+    const btn = document.querySelector(sel) as HTMLButtonElement | null;
+    if (btn && !btn.disabled) {
+      btn.click();
+      return true;
+    }
   }
   return false;
+}
+
+// Try to send: click send button; if none found (or on Perplexity), use Enter on input
+function triggerSend(config: SiteConfig, inputElement: HTMLElement): void {
+  const hostname = window.location.hostname;
+  const isPerplexity = hostname.includes('perplexity.ai');
+  const sendWithEnter = (): void => {
+    inputElement.focus();
+    inputElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+    inputElement.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+  };
+  if (isPerplexity) {
+    // Perplexity: prefer Enter (their send control is often not a standard button)
+    setTimeout(sendWithEnter, 220);
+    return;
+  }
+  const clicked = clickSendButton(config);
+  if (clicked) return;
+  setTimeout(sendWithEnter, 200);
 }
 
 // Figma nev-flynn Button: labels per key
@@ -167,23 +203,6 @@ const FEEDBACK_LABELS: Record<ArrowKey, string> = {
   ArrowUp: 'Explain this code',
   ArrowDown: 'Optimize this'
 };
-
-// Dotted arrow SVG: 7-dot shaft + 4-dot head (5.2px dots, #A8A8A8). Base arrow points right; rotation sets direction.
-const ARROW_SVG = (rotateDeg: number) => `
-  <svg class="arrowprompt-arrow" width="26" height="36" viewBox="0 0 34 36" fill="none" style="transform: rotate(${rotateDeg}deg)">
-    <circle cx="4" cy="18" r="2.6" fill="#A8A8A8"/>
-    <circle cx="9" cy="18" r="2.6" fill="#A8A8A8"/>
-    <circle cx="14" cy="18" r="2.6" fill="#A8A8A8"/>
-    <circle cx="19" cy="18" r="2.6" fill="#A8A8A8"/>
-    <circle cx="24" cy="18" r="2.6" fill="#A8A8A8"/>
-    <circle cx="29" cy="18" r="2.6" fill="#A8A8A8"/>
-    <circle cx="34" cy="18" r="2.6" fill="#A8A8A8"/>
-    <circle cx="0" cy="18" r="2.6" fill="#A8A8A8"/>
-    <circle cx="4" cy="14" r="2.6" fill="#A8A8A8"/>
-    <circle cx="4" cy="22" r="2.6" fill="#A8A8A8"/>
-    <circle cx="4" cy="18" r="2.6" fill="#A8A8A8"/>
-  </svg>
-`;
 
 // CSS for ArrowUp card only (used inside Shadow DOM to avoid page overrides)
 const ARROWUP_SHADOW_CSS = `
@@ -197,7 +216,6 @@ const ARROWUP_SHADOW_CSS = `
     position: relative;
     background: linear-gradient(180deg, #E9E9E9 0%, #E9E9E9 0.01%, #FFFFFF 100%);
     border-radius: 13.66px;
-    width: 119.37px;
     height: 75.43px;
     box-sizing: border-box;
   }
@@ -228,6 +246,17 @@ const ARROWUP_SHADOW_CSS = `
     flex: none;
     white-space: nowrap;
   }
+  .arrowprompt-neo-button-row {
+    flex-direction: row;
+    width: auto;
+    min-width: 112.29px;
+    height: 68.35px;
+  }
+  .arrowprompt-figma-outer[data-key="ArrowRight"] {
+    width: auto;
+    height: auto;
+    min-width: 112.29px;
+  }
   @keyframes arrowprompt-slideIn {
     from { transform: translateY(6px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
@@ -240,10 +269,6 @@ const ARROWUP_SHADOW_CSS = `
 // Show feedback at top-right of input box (Figma nev-flynn Button style)
 function showFeedback(key: ArrowKey, prompt: string, _inputElement: HTMLElement): void {
   const label = prompt || FEEDBACK_LABELS[key];
-  const isHorizontal = key === 'ArrowLeft' || key === 'ArrowRight';
-  const arrowRotate = key === 'ArrowLeft' ? -90 : key === 'ArrowRight' ? 90 : key === 'ArrowUp' ? -90 : 180;
-
-  const arrowSvg = ARROW_SVG(arrowRotate);
   const upArrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
   <circle cx="13" cy="2.60001" r="2.60001" fill="#A8A8A8"/>
   <circle cx="13" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
@@ -255,64 +280,73 @@ function showFeedback(key: ArrowKey, prompt: string, _inputElement: HTMLElement)
   <circle cx="2.60001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
   <circle cx="18.2" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
 </svg>`;
+  const leftArrowSvg = `<span style="display:inline-block;transform:rotate(-90deg);">${upArrowSvg}</span>`;
+  const rightArrowSvg = `<span style="display:inline-block;transform:rotate(90deg);">${upArrowSvg}</span>`;
+  const downArrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+  <circle cx="13.0001" cy="23.4001" r="2.60001" transform="rotate(-180 13.0001 23.4001)" fill="#A8A8A8"/>
+  <circle cx="13.0001" cy="18.2001" r="2.60001" transform="rotate(-180 13.0001 18.2001)" fill="#A8A8A8"/>
+  <circle cx="13.0001" cy="12.9999" r="2.60001" transform="rotate(-180 13.0001 12.9999)" fill="#A8A8A8"/>
+  <circle cx="13.0001" cy="7.79996" r="2.60001" transform="rotate(-180 13.0001 7.79996)" fill="#A8A8A8"/>
+  <circle cx="13.0001" cy="2.60001" r="2.60001" transform="rotate(-180 13.0001 2.60001)" fill="#A8A8A8"/>
+  <circle cx="18.2002" cy="18.2001" r="2.60001" transform="rotate(-180 18.2002 18.2001)" fill="#A8A8A8"/>
+  <circle cx="2.60007" cy="12.9999" r="2.60001" transform="rotate(-180 2.60007 12.9999)" fill="#A8A8A8"/>
+  <circle cx="23.4001" cy="12.9999" r="2.60001" transform="rotate(-180 23.4001 12.9999)" fill="#A8A8A8"/>
+  <circle cx="7.80014" cy="18.2001" r="2.60001" transform="rotate(-180 7.80014 18.2001)" fill="#A8A8A8"/>
+</svg>`;
   const upKeyHtml = `
     <button type="button" class="arrowprompt-neo-button">
       ${upArrowSvg}
       <span class="arrowprompt-button-text">${label}</span>
     </button>
   `;
-  const innerContent = key === 'ArrowUp'
-    ? upKeyHtml
-    : isHorizontal
-      ? key === 'ArrowLeft'
-        ? `<span class="arrowprompt-arrow-wrap">${arrowSvg}</span><span class="arrowprompt-label">${label}</span>`
-        : `<span class="arrowprompt-label">${label}</span><span class="arrowprompt-arrow-wrap">${arrowSvg}</span>`
-      : `<span class="arrowprompt-arrow-wrap">${arrowSvg}</span><span class="arrowprompt-label">${label}</span>`;
-
-  const useShadow = key === 'ArrowUp';
-
-  let feedback: HTMLElement;
-  if (useShadow) {
-    const host = document.createElement('div');
-    host.className = 'arrowprompt-feedback';
-    const sr = host.attachShadow({ mode: 'open' });
-    const style = document.createElement('style');
-    style.textContent = ARROWUP_SHADOW_CSS;
-    sr.appendChild(style);
-    const wrap = document.createElement('div');
-    wrap.className = 'arrowprompt-figma-outer';
-    wrap.setAttribute('data-key', key);
-    wrap.innerHTML = upKeyHtml;
-    sr.appendChild(wrap);
-    feedback = host;
-  } else {
-    feedback = document.createElement('div');
-    feedback.className = 'arrowprompt-feedback';
-    feedback.innerHTML = `
-    <div class="arrowprompt-figma-outer" data-key="${key}">
-      <div class="arrowprompt-figma-button ${isHorizontal ? 'arrowprompt-row' : 'arrowprompt-col'}">
-        ${innerContent}
-      </div>
-    </div>
+  const leftKeyHtml = `
+    <button type="button" class="arrowprompt-neo-button arrowprompt-neo-button-row">
+      ${leftArrowSvg}
+      <span class="arrowprompt-button-text">Fix this bug</span>
+    </button>
   `;
-  }
+  const rightKeyHtml = `
+    <button type="button" class="arrowprompt-neo-button arrowprompt-neo-button-row">
+      <span class="arrowprompt-button-text">${label}</span>
+      ${rightArrowSvg}
+    </button>
+  `;
+  const downKeyHtml = `
+    <button type="button" class="arrowprompt-neo-button">
+      <span class="arrowprompt-button-text">${label}</span>
+      ${downArrowSvg}
+    </button>
+  `;
+
+  const keyToHtml =
+    key === 'ArrowUp' ? upKeyHtml
+    : key === 'ArrowLeft' ? leftKeyHtml
+    : key === 'ArrowRight' ? rightKeyHtml
+    : downKeyHtml;
+
+  const host = document.createElement('div');
+  host.className = 'arrowprompt-feedback';
+  const sr = host.attachShadow({ mode: 'open' });
+  const style = document.createElement('style');
+  style.textContent = ARROWUP_SHADOW_CSS;
+  sr.appendChild(style);
+  const wrap = document.createElement('div');
+  wrap.className = 'arrowprompt-figma-outer';
+  wrap.setAttribute('data-key', key);
+  wrap.innerHTML = keyToHtml;
+  sr.appendChild(wrap);
+  const feedback: HTMLElement = host;
 
   document.body.appendChild(feedback);
 
-  const gap = 60;
-  // Use right/bottom so position does not depend on getBoundingClientRect (which can be wrong before layout)
+  const gap = '1%';
   feedback.style.cssText = `
     position: fixed;
-    right: ${gap}px;
-    bottom: ${gap}px;
+    right: ${gap};
+    bottom: ${gap};
     z-index: 999999;
     animation: arrowprompt-slideIn 0.25s ease;
   `;
-
-  // #region agent log
-  const feedbackRect = feedback.getBoundingClientRect();
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'content.ts:showFeedback',message:'Feedback position',data:{innerW:window.innerWidth,innerH:window.innerHeight,rectW:feedbackRect.width,rectH:feedbackRect.height,rectLeft:feedbackRect.left,rectTop:feedbackRect.top,usingRightBottom:true,gap},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion agent log
 
   const removeFeedback = (): void => {
     feedback.style.animation = 'arrowprompt-fadeOut 0.2s ease forwards';
@@ -331,12 +365,18 @@ function handleKeyDown(event: KeyboardEvent): void {
   }
 
   const config = getCurrentSiteConfig();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'content.ts:handleKeyDown',message:'site check',data:{hostname:window.location.hostname,hasConfig:!!config,key:event.key},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion agent log
   if (!config) {
     console.log('[ArrowPrompt] Unsupported website');
     return;
   }
 
   const inputElement = getInputElement();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'content.ts:handleKeyDown',message:'input element',data:{hasInput:!!inputElement,inputSelector:config.inputSelector,tagName:inputElement?.tagName},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion agent log
   if (!inputElement) {
     console.log('[ArrowPrompt] Input field not found');
     return;
@@ -355,10 +395,17 @@ function handleKeyDown(event: KeyboardEvent): void {
   if (!prompt) return;
 
   const inserted = insertTextToInput(inputElement, prompt, config);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'content.ts:handleKeyDown',message:'insert result',data:{inserted,key:event.key},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion agent log
   if (inserted) {
     console.log('[ArrowPrompt] Prompt inserted:', prompt);
     showFeedback(event.key as ArrowKey, prompt, inputElement);
-    setTimeout(() => clickSendButton(config), 200);
+    // #region agent log
+    const sendBtn = document.querySelector(config.sendButtonSelector);
+    fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'content.ts:handleKeyDown',message:'send button',data:{sendButtonFound:!!sendBtn,sendSelector:config.sendButtonSelector},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion agent log
+    setTimeout(() => triggerSend(config, inputElement), 200);
   }
 }
 
@@ -381,7 +428,6 @@ function addStyles(): void {
       border-radius: 13.66px;
     }
     .arrowprompt-figma-outer[data-key="ArrowUp"] {
-      width: 119.37px;
       height: 75.43px;
     }
     .arrowprompt-figma-outer[data-key="ArrowUp"] .arrowprompt-figma-button {

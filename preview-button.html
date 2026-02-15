@@ -16,12 +16,11 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     .preview-label {
-      position: absolute;
-      top: 24px;
-      left: 50%;
-      transform: translateX(-50%);
+      display: block;
+      margin-bottom: 8px;
       font-size: 14px;
       color: #666;
+      text-align: center;
     }
     .arrowprompt-figma-outer {
       display: flex;
@@ -32,8 +31,16 @@
       position: relative;
       background: linear-gradient(180deg, #E9E9E9 0%, #E9E9E9 0.01%, #FFFFFF 100%);
       border-radius: 13.66px;
-      width: 119.37px;
+    }
+    .preview-up .arrowprompt-figma-outer,
+    .preview-down .arrowprompt-figma-outer {
       height: 75.43px;
+    }
+    .arrowprompt-neo-button.arrowprompt-neo-button-row {
+      flex-direction: row;
+      width: auto;
+      min-width: 112.29px;
+      height: 68.35px;
     }
     .arrowprompt-neo-button {
       box-sizing: border-box;
@@ -65,25 +72,146 @@
       flex: none;
       white-space: nowrap;
     }
+    /* Right / Left key: row layout, no fixed height */
+    .preview-right .arrowprompt-figma-outer {
+      width: auto;
+      min-width: 140px;
+    }
+    .preview-left .arrowprompt-figma-outer {
+      width: auto;
+    }
+    .arrowprompt-figma-button {
+      box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10.63px 12.14px;
+      gap: 8.1px;
+      background: linear-gradient(180deg, #F4F4F4 0%, #FEFEFE 100%);
+      box-shadow: 0px 0px 0.22px 0.22px rgba(0, 0, 0, 0.07), 0px 0px 0.22px 0.67px rgba(0, 0, 0, 0.05), 0px 2.7px 2.92px -1.35px rgba(0, 0, 0, 0.25), 0px 0.9px 3.6px 0.9px rgba(0, 0, 0, 0.12);
+      border-radius: 10.12px;
+      flex: none;
+    }
+    .arrowprompt-figma-button.arrowprompt-row {
+      flex-direction: row;
+    }
+    .arrowprompt-figma-button.arrowprompt-col {
+      flex-direction: column;
+    }
+    .arrowprompt-arrow-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+    }
+    .arrowprompt-label {
+      font-family: 'Product Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 400;
+      font-size: 12.14px;
+      line-height: 110%;
+      color: #06071A;
+      flex: none;
+      white-space: nowrap;
+    }
+    .preview-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 56px;
+    }
+    .preview-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
   </style>
 </head>
 <body>
-  <span class="preview-label">Up key feedback (Explain this code)</span>
-  <div class="arrowprompt-figma-outer" data-key="ArrowUp">
-    <button type="button" class="arrowprompt-neo-button">
-      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
-        <circle cx="13" cy="2.60001" r="2.60001" fill="#A8A8A8"/>
-        <circle cx="13" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
-        <circle cx="13" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
-        <circle cx="13" cy="18.2001" r="2.60001" fill="#A8A8A8"/>
-        <circle cx="13" cy="23.4001" r="2.60001" fill="#A8A8A8"/>
-        <circle cx="7.79996" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
-        <circle cx="23.4001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
-        <circle cx="2.60001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
-        <circle cx="18.2" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
-      </svg>
-      <span class="arrowprompt-button-text">Explain this code</span>
-    </button>
+  <div class="preview-wrap">
+    <div class="preview-block preview-up">
+      <span class="preview-label">Up key (Explain this code)</span>
+      <div class="arrowprompt-figma-outer" data-key="ArrowUp">
+        <button type="button" class="arrowprompt-neo-button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+            <circle cx="13" cy="2.60001" r="2.60001" fill="#A8A8A8"/>
+            <circle cx="13" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+            <circle cx="13" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+            <circle cx="13" cy="18.2001" r="2.60001" fill="#A8A8A8"/>
+            <circle cx="13" cy="23.4001" r="2.60001" fill="#A8A8A8"/>
+            <circle cx="7.79996" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+            <circle cx="23.4001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+            <circle cx="2.60001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+            <circle cx="18.2" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+          </svg>
+          <span class="arrowprompt-button-text">Explain this code</span>
+        </button>
+      </div>
+    </div>
+    <div class="preview-block preview-right">
+      <span class="preview-label">Right key (Translate to Chinese)</span>
+      <div class="arrowprompt-figma-outer" data-key="ArrowRight">
+        <div class="arrowprompt-figma-button arrowprompt-row">
+          <span class="arrowprompt-label">Translate to Chinese</span>
+          <span class="arrowprompt-arrow-wrap">
+            <span style="display:inline-block;transform:rotate(90deg);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+                <circle cx="13" cy="2.60001" r="2.60001" fill="#A8A8A8"/>
+                <circle cx="13" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+                <circle cx="13" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+                <circle cx="13" cy="18.2001" r="2.60001" fill="#A8A8A8"/>
+                <circle cx="13" cy="23.4001" r="2.60001" fill="#A8A8A8"/>
+                <circle cx="7.79996" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+                <circle cx="23.4001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+                <circle cx="2.60001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+                <circle cx="18.2" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+              </svg>
+            </span>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="preview-block preview-left">
+      <span class="preview-label">Left key (Fix this bug)</span>
+      <div class="arrowprompt-figma-outer" data-key="ArrowLeft">
+        <button type="button" class="arrowprompt-neo-button arrowprompt-neo-button-row">
+          <span style="display:inline-block;transform:rotate(-90deg);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+              <circle cx="13" cy="2.60001" r="2.60001" fill="#A8A8A8"/>
+              <circle cx="13" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+              <circle cx="13" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+              <circle cx="13" cy="18.2001" r="2.60001" fill="#A8A8A8"/>
+              <circle cx="13" cy="23.4001" r="2.60001" fill="#A8A8A8"/>
+              <circle cx="7.79996" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+              <circle cx="23.4001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+              <circle cx="2.60001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+              <circle cx="18.2" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+            </svg>
+          </span>
+          <span class="arrowprompt-button-text">Fix this bug</span>
+        </button>
+      </div>
+    </div>
+    <div class="preview-block preview-down">
+      <span class="preview-label">Down key (Optimize this)</span>
+      <div class="arrowprompt-figma-outer" data-key="ArrowDown">
+        <div class="arrowprompt-figma-button arrowprompt-col">
+          <span class="arrowprompt-label">Optimize this</span>
+          <span class="arrowprompt-arrow-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+              <circle cx="13.0001" cy="23.4001" r="2.60001" transform="rotate(-180 13.0001 23.4001)" fill="#A8A8A8"/>
+              <circle cx="13.0001" cy="18.2001" r="2.60001" transform="rotate(-180 13.0001 18.2001)" fill="#A8A8A8"/>
+              <circle cx="13.0001" cy="12.9999" r="2.60001" transform="rotate(-180 13.0001 12.9999)" fill="#A8A8A8"/>
+              <circle cx="13.0001" cy="7.79996" r="2.60001" transform="rotate(-180 13.0001 7.79996)" fill="#A8A8A8"/>
+              <circle cx="13.0001" cy="2.60001" r="2.60001" transform="rotate(-180 13.0001 2.60001)" fill="#A8A8A8"/>
+              <circle cx="18.2002" cy="18.2001" r="2.60001" transform="rotate(-180 18.2002 18.2001)" fill="#A8A8A8"/>
+              <circle cx="2.60007" cy="12.9999" r="2.60001" transform="rotate(-180 2.60007 12.9999)" fill="#A8A8A8"/>
+              <circle cx="23.4001" cy="12.9999" r="2.60001" transform="rotate(-180 23.4001 12.9999)" fill="#A8A8A8"/>
+              <circle cx="7.80014" cy="18.2001" r="2.60001" transform="rotate(-180 7.80014 18.2001)" fill="#A8A8A8"/>
+            </svg>
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 </body>
 </html>

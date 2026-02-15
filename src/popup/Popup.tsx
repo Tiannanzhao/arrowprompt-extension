@@ -44,6 +44,10 @@ const Popup: React.FC = () => {
         <PromptItem icon="→" text={config.prompts.ArrowRight} />
       </div>
 
+      <div className="popup-position">
+        Feedback position: 1% from bottom-right
+      </div>
+
       <div className={`status ${config.enabled ? 'active' : 'inactive'}`}>
         {config.enabled ? '✓ Extension enabled' : '✗ Extension disabled'}
       </div>

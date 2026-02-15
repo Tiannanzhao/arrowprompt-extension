@@ -11,7 +11,9 @@
     "*://claude.ai/*",
     "*://chat.openai.com/*",
     "*://chatgpt.com/*",
-    "*://gemini.google.com/*"
+    "*://gemini.google.com/*",
+    "*://www.perplexity.ai/*",
+    "*://perplexity.ai/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js"
@@ -22,7 +24,9 @@
         "*://claude.ai/*",
         "*://chat.openai.com/*",
         "*://chatgpt.com/*",
-        "*://gemini.google.com/*"
+        "*://gemini.google.com/*",
+        "*://www.perplexity.ai/*",
+        "*://perplexity.ai/*"
       ],
       "js": ["content/content.js"],
       "run_at": "document_end"
