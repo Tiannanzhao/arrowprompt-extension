@@ -89,11 +89,77 @@ function getCurrentSiteConfig(): SiteConfig | null {
   return null;
 }
 
-// Get input element
+// Query selector in element and all descendant shadow roots (ChatGPT may put composer in Shadow DOM)
+function querySelectorIncludingShadowRoots(root: Document | Element, selector: string): HTMLElement | null {
+  const el = root.querySelector(selector);
+  if (el) return el as HTMLElement;
+  const walk = (node: Element): HTMLElement | null => {
+    const shadow = node.shadowRoot;
+    if (shadow) {
+      const found = shadow.querySelector(selector);
+      if (found) return found as HTMLElement;
+      for (const child of shadow.querySelectorAll('*')) {
+        const deep = walk(child);
+        if (deep) return deep;
+      }
+    }
+    return null;
+  };
+  for (const child of root.querySelectorAll('*')) {
+    const found = walk(child);
+    if (found) return found;
+  }
+  return null;
+}
+
+// Get documents to search (main + same-origin iframes) for ChatGPT
+function getSearchDocuments(): Document[] {
+  const docs: Document[] = [document];
+  try {
+    document.querySelectorAll('iframe').forEach((frame) => {
+      try {
+        const doc = frame.contentDocument;
+        if (doc && doc !== document) docs.push(doc);
+      } catch {
+        /* same-origin only */
+      }
+    });
+  } catch {
+    /* ignore */
+  }
+  return docs;
+}
+
+// Get input element (searches document, iframes, and Shadow DOM for ChatGPT)
 function getInputElement(): HTMLElement | null {
   const config = getCurrentSiteConfig();
   if (!config) return null;
-  return document.querySelector(config.inputSelector);
+  const hostname = window.location.hostname;
+  const isChatGPT = hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com');
+  const selectors = config.inputSelector.split(',').map(s => s.trim());
+
+  const searchInDoc = (doc: Document): HTMLElement | null => {
+    for (const sel of selectors) {
+      const el = doc.querySelector(sel) as HTMLElement | null;
+      if (el) return el;
+      if (doc.body) {
+        const inShadow = querySelectorIncludingShadowRoots(doc.body, sel);
+        if (inShadow) return inShadow;
+      }
+    }
+    return null;
+  };
+
+  let el = searchInDoc(document);
+  if (el) return el;
+  if (isChatGPT) {
+    for (const doc of getSearchDocuments()) {
+      if (doc === document) continue;
+      el = searchInDoc(doc);
+      if (el) return el;
+    }
+  }
+  return null;
 }
 
 // Detect input type from element (so one site can use textarea or contenteditable)
@@ -164,14 +230,33 @@ function insertTextToInput(element: HTMLElement, text: string, _config: SiteConf
   return true;
 }
 
-// Click send button (tries each selector in order, comma-separated)
-function clickSendButton(config: SiteConfig): boolean {
+// Click send button (tries each selector; for ChatGPT also searches Shadow DOM and same doc as inputEl)
+function clickSendButton(config: SiteConfig, inputDoc?: Document): boolean {
+  const doc = inputDoc ?? document;
+  const hostname = window.location.hostname;
+  const isChatGPT = hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com');
   const selectors = config.sendButtonSelector.split(',').map(s => s.trim());
-  for (const sel of selectors) {
-    const btn = document.querySelector(sel) as HTMLButtonElement | null;
-    if (btn && !btn.disabled) {
-      btn.click();
-      return true;
+  const searchDoc = (d: Document): HTMLButtonElement | null => {
+    for (const sel of selectors) {
+      let btn = d.querySelector(sel) as HTMLButtonElement | null;
+      if (!btn && d.body && isChatGPT) btn = querySelectorIncludingShadowRoots(d.body, sel) as HTMLButtonElement | null;
+      if (btn && !btn.disabled) return btn;
+    }
+    return null;
+  };
+  let btn = searchDoc(doc);
+  if (btn) {
+    btn.click();
+    return true;
+  }
+  if (isChatGPT && doc === document) {
+    for (const d of getSearchDocuments()) {
+      if (d === document) continue;
+      btn = searchDoc(d);
+      if (btn) {
+        btn.click();
+        return true;
+      }
     }
   }
   return false;
@@ -181,17 +266,32 @@ function clickSendButton(config: SiteConfig): boolean {
 function triggerSend(config: SiteConfig, inputElement: HTMLElement): void {
   const hostname = window.location.hostname;
   const isPerplexity = hostname.includes('perplexity.ai');
+  // #region agent log
+  const _h5b = {location:'content.ts:triggerSend',message:'send path',data:{hostname,isPerplexity},hypothesisId:'H5'};
+  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h5b,timestamp:Date.now()})}).catch(()=>{});
+  console.log('[ArrowPrompt:debug]', _h5b);
+  // #endregion agent log
   const sendWithEnter = (): void => {
     inputElement.focus();
     inputElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
     inputElement.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+    // #region agent log
+    const _h5c = {location:'content.ts:triggerSend:sendWithEnter',message:'enter dispatched',data:{tagName:inputElement.tagName},hypothesisId:'H5'};
+    fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h5c,timestamp:Date.now()})}).catch(()=>{});
+    console.log('[ArrowPrompt:debug]', _h5c);
+    // #endregion agent log
   };
   if (isPerplexity) {
     // Perplexity: prefer Enter (their send control is often not a standard button)
     setTimeout(sendWithEnter, 220);
     return;
   }
-  const clicked = clickSendButton(config);
+  const clicked = clickSendButton(config, inputElement.ownerDocument);
+  // #region agent log
+  const _h5d = {location:'content.ts:triggerSend',message:'button click result',data:{clicked},hypothesisId:'H5'};
+  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h5d,timestamp:Date.now()})}).catch(()=>{});
+  console.log('[ArrowPrompt:debug]', _h5d);
+  // #endregion agent log
   if (clicked) return;
   setTimeout(sendWithEnter, 200);
 }
@@ -363,10 +463,15 @@ function handleKeyDown(event: KeyboardEvent): void {
     console.log('[ArrowPrompt] Extension disabled');
     return;
   }
+  // #region agent log
+  console.log('[ArrowPrompt:debug] handleKeyDown', event.key, window.location.hostname);
+  // #endregion agent log
 
   const config = getCurrentSiteConfig();
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'content.ts:handleKeyDown',message:'site check',data:{hostname:window.location.hostname,hasConfig:!!config,key:event.key},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  const _h1 = {location:'content.ts:handleKeyDown',message:'site check',data:{hostname:window.location.hostname,hasConfig:!!config,key:event.key},hypothesisId:'H1'};
+  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h1,timestamp:Date.now()})}).catch(()=>{});
+  console.log('[ArrowPrompt:debug]', _h1);
   // #endregion agent log
   if (!config) {
     console.log('[ArrowPrompt] Unsupported website');
@@ -375,14 +480,25 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   const inputElement = getInputElement();
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'content.ts:handleKeyDown',message:'input element',data:{hasInput:!!inputElement,inputSelector:config.inputSelector,tagName:inputElement?.tagName},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+  const _h2 = {location:'content.ts:handleKeyDown',message:'input element',data:{hasInput:!!inputElement,inputSelector:config.inputSelector,tagName:inputElement?.tagName},hypothesisId:'H2'};
+  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h2,timestamp:Date.now()})}).catch(()=>{});
+  console.log('[ArrowPrompt:debug]', _h2);
   // #endregion agent log
   if (!inputElement) {
     console.log('[ArrowPrompt] Input field not found');
     return;
   }
 
-  if (!isInputEmpty(inputElement, config)) {
+  const isEmpty = isInputEmpty(inputElement, config);
+  const valuePreview = getInputType(inputElement) === 'textarea'
+    ? (inputElement as HTMLTextAreaElement).value?.slice(0, 80) ?? ''
+    : (inputElement.textContent || inputElement.innerText || '').slice(0, 80);
+  // #region agent log
+  const _h3 = {location:'content.ts:handleKeyDown',message:'input empty check',data:{isEmpty,tagName:inputElement.tagName,valueLength:valuePreview.length,valuePreview},hypothesisId:'H3'};
+  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h3,timestamp:Date.now()})}).catch(()=>{});
+  console.log('[ArrowPrompt:debug]', _h3);
+  // #endregion agent log
+  if (!isEmpty) {
     return; // Don't intercept if there's content
   }
 
@@ -396,14 +512,18 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   const inserted = insertTextToInput(inputElement, prompt, config);
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'content.ts:handleKeyDown',message:'insert result',data:{inserted,key:event.key},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  const _h4 = {location:'content.ts:handleKeyDown',message:'insert result',data:{inserted,key:event.key},hypothesisId:'H4'};
+  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h4,timestamp:Date.now()})}).catch(()=>{});
+  console.log('[ArrowPrompt:debug]', _h4);
   // #endregion agent log
   if (inserted) {
     console.log('[ArrowPrompt] Prompt inserted:', prompt);
     showFeedback(event.key as ArrowKey, prompt, inputElement);
     // #region agent log
     const sendBtn = document.querySelector(config.sendButtonSelector);
-    fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'content.ts:handleKeyDown',message:'send button',data:{sendButtonFound:!!sendBtn,sendSelector:config.sendButtonSelector},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    const _h5a = {location:'content.ts:handleKeyDown',message:'send button',data:{sendButtonFound:!!sendBtn,sendSelector:config.sendButtonSelector},hypothesisId:'H5'};
+    fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h5a,timestamp:Date.now()})}).catch(()=>{});
+    console.log('[ArrowPrompt:debug]', _h5a);
     // #endregion agent log
     setTimeout(() => triggerSend(config, inputElement), 200);
   }
