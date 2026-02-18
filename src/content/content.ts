@@ -659,35 +659,21 @@ async function loadConfig(): Promise<ExtensionConfig> {
   }
 }
 
-// Initialize
-async function init(): Promise<void> {
+// Initialize: attach listeners immediately so arrow keys work before storage loads (store review)
+function init(): void {
   addStyles();
-  
-  currentConfig = await loadConfig();
-  isEnabled = currentConfig.enabled;
-
-  // Listen for keyboard events
   document.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('keydown', handleKeyDown, true);
-
-  // Listen for config changes
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync') {
-      if (changes.enabled) {
-        isEnabled = changes.enabled.newValue;
-        console.log('[ArrowPrompt] Status updated:', isEnabled ? 'enabled' : 'disabled');
-      }
-      if (changes.prompts) {
-        currentConfig.prompts = changes.prompts.newValue;
-      }
+      if (changes.enabled) isEnabled = changes.enabled.newValue;
+      if (changes.prompts) currentConfig.prompts = changes.prompts.newValue;
     }
   });
-
-  const siteConfig = getCurrentSiteConfig();
-  console.log('✓ ArrowPrompt activated');
-  console.log('[ArrowPrompt] Current site:', window.location.hostname);
-  console.log('[ArrowPrompt] Site config:', siteConfig ? 'found' : 'not supported');
-  console.log('[ArrowPrompt] Status:', isEnabled ? 'enabled' : 'disabled');
+  loadConfig().then((config) => {
+    currentConfig = config;
+    isEnabled = config.enabled;
+  }).catch(() => { /* keep defaults */ });
 }
 
 // Start

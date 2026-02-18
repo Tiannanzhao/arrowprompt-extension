@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ArrowPrompt - AI Coding Shortcuts",
   "version": "1.0.0",
-  "description": "Send AI prompts with arrow keys. Works with Claude, ChatGPT, and Gemini.",
+  "description": "On Claude, ChatGPT, Perplexity & Gemini: press an arrow key (↑↓←→) in the empty chat box to insert and send a preset prompt. Customize in the extension popup.",
   "permissions": [
     "storage",
     "activeTab"
@@ -29,7 +29,7 @@
         "*://perplexity.ai/*"
       ],
       "js": ["content/content.js"],
-      "run_at": "document_end"
+      "run_at": "document_idle"
     }
   ],
   "action": {
