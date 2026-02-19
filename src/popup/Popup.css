@@ -113,3 +113,187 @@ input:checked + .slider:before {
   background: #ffebee;
   color: #c62828;
 }
+
+.popup-loading {
+  padding: 16px;
+  text-align: center;
+}
+
+.license-section {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.standard-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.standard-badge {
+  background: linear-gradient(135deg, #1a73e8, #0d47a1);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btn-deactivate {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #666;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-deactivate:hover {
+  background: #eee;
+}
+
+.license-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.license-input {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.btn-verify {
+  padding: 8px 12px;
+  font-size: 13px;
+  background: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-verify:hover:not(:disabled) {
+  background: #1557b0;
+}
+
+.btn-verify:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.verify-error {
+  font-size: 12px;
+  color: #c62828;
+}
+
+.buy-standard-link {
+  font-size: 12px;
+  color: #1a73e8;
+}
+
+.prompt-section,
+.combo-section {
+  margin-top: 12px;
+}
+
+.section-title {
+  font-size: 13px;
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.prompt-item.editable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prompt-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.upgrade-hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 8px;
+}
+
+.combo-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.combo-keys {
+  min-width: 80px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.recording-hint {
+  color: #666;
+  font-size: 11px;
+}
+
+.btn-record,
+.btn-done-combo {
+  padding: 4px 8px;
+  font-size: 11px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-done-combo {
+  background: #4CAF50;
+  color: white;
+  border-color: #4CAF50;
+}
+
+.combo-prompt-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.btn-remove {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  background: #ffebee;
+  color: #c62828;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-add-combo {
+  margin-top: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: #f5f5f5;
+  border: 1px dashed #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-add-combo:hover {
+  background: #eee;
+}

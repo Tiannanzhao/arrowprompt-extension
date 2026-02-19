@@ -10,10 +10,12 @@
   "host_permissions": [
     "*://claude.ai/*",
     "*://chat.openai.com/*",
-    "*://chatgpt.com/*","*://www.chatgpt.com/*",
+    "*://chatgpt.com/*",
+    "*://www.chatgpt.com/*",
     "*://gemini.google.com/*",
     "*://www.perplexity.ai/*",
-    "*://perplexity.ai/*"
+    "*://perplexity.ai/*",
+    "https://*.cloudfunctions.net/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js"
@@ -23,12 +25,15 @@
       "matches": [
         "*://claude.ai/*",
         "*://chat.openai.com/*",
-        "*://chatgpt.com/*","*://www.chatgpt.com/*",
+        "*://chatgpt.com/*",
+        "*://www.chatgpt.com/*",
         "*://gemini.google.com/*",
         "*://www.perplexity.ai/*",
         "*://perplexity.ai/*"
       ],
-      "js": ["content/content.js"],
+      "js": [
+        "content/content.js"
+      ],
       "run_at": "document_idle"
     }
   ],

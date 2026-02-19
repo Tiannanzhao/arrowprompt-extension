@@ -13,6 +13,7 @@ const DEFAULT_PROMPTS = {
 const DEFAULT_CONFIG = {
   enabled: true,
   prompts: DEFAULT_PROMPTS,
+  comboPrompts: [],
   version: '1.0.0',
   isPro: false
 };

@@ -13,9 +13,16 @@ interface PromptConfig {
   ArrowRight: string;
 }
 
+interface ComboBinding {
+  id: string;
+  keys: ArrowKey[];
+  prompt: string;
+}
+
 interface ExtensionConfig {
   enabled: boolean;
   prompts: PromptConfig;
+  comboPrompts: ComboBinding[];
   version: string;
   isPro: boolean;
 }
@@ -39,6 +46,7 @@ const DEFAULT_PROMPTS: PromptConfig = {
 const DEFAULT_CONFIG: ExtensionConfig = {
   enabled: true,
   prompts: DEFAULT_PROMPTS,
+  comboPrompts: [],
   version: '1.0.0',
   isPro: false
 };
@@ -77,6 +85,23 @@ const SITE_CONFIGS: Record<string, SiteConfig> = {
 // State
 let isEnabled = true;
 let currentConfig: ExtensionConfig = DEFAULT_CONFIG;
+const keysHeld = new Set<ArrowKey>();
+
+function sortedKeys(set: Set<ArrowKey>): ArrowKey[] {
+  return [...set].sort();
+}
+
+function findComboMatch(keys: ArrowKey[]): ComboBinding | null {
+  if (keys.length < 2 || keys.length > 4) return null;
+  const sorted = [...keys].sort();
+  const keyStr = sorted.join(',');
+  for (const combo of currentConfig.comboPrompts) {
+    if (combo.keys.length < 2) continue;
+    const comboStr = [...combo.keys].sort().join(',');
+    if (comboStr === keyStr) return combo;
+  }
+  return null;
+}
 
 // Get current site config
 function getCurrentSiteConfig(): SiteConfig | null {
@@ -503,11 +528,20 @@ function handleKeyDown(event: KeyboardEvent): void {
   }
 
   console.log('[ArrowPrompt] Arrow key detected:', event.key);
-  
+
   event.preventDefault();
   event.stopPropagation();
 
-  const prompt = currentConfig.prompts[event.key as ArrowKey];
+  keysHeld.add(event.key as ArrowKey);
+
+  let prompt: string | null = null;
+  if (currentConfig.isPro && keysHeld.size >= 2) {
+    const combo = findComboMatch(sortedKeys(keysHeld));
+    if (combo && combo.prompt) prompt = combo.prompt;
+  }
+  if (!prompt && keysHeld.size === 1) {
+    prompt = currentConfig.prompts[event.key as ArrowKey] || null;
+  }
   if (!prompt) return;
 
   const inserted = insertTextToInput(inputElement, prompt, config);
@@ -666,12 +700,24 @@ function init(): void {
   window.addEventListener('keydown', handleKeyDown, true);
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync') {
-      if (changes.enabled) isEnabled = changes.enabled.newValue;
-      if (changes.prompts) currentConfig.prompts = changes.prompts.newValue;
+      if (changes.enabled !== undefined) isEnabled = changes.enabled.newValue;
+      if (changes.prompts !== undefined) currentConfig.prompts = changes.prompts.newValue;
+      if (changes.isPro !== undefined) currentConfig.isPro = changes.isPro.newValue;
+      if (changes.comboPrompts !== undefined) currentConfig.comboPrompts = Array.isArray(changes.comboPrompts.newValue) ? changes.comboPrompts.newValue : [];
     }
   });
+  function handleKeyUp(e: KeyboardEvent): void {
+    if (ARROW_KEYS.includes(e.key)) keysHeld.delete(e.key as ArrowKey);
+  }
+  document.addEventListener('keyup', handleKeyUp, true);
+  window.addEventListener('keyup', handleKeyUp, true);
+
   loadConfig().then((config) => {
-    currentConfig = config;
+    currentConfig = {
+      ...DEFAULT_CONFIG,
+      ...config,
+      comboPrompts: Array.isArray(config.comboPrompts) ? config.comboPrompts : []
+    };
     isEnabled = config.enabled;
   }).catch(() => { /* keep defaults */ });
 }

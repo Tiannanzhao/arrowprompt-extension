@@ -6,10 +6,25 @@ export interface PromptConfig {
   ArrowRight: string;
 }
 
+// Combo binding: 2–4 arrow keys → prompt (Standard only)
+export interface ComboBinding {
+  id: string;
+  keys: ArrowKey[];
+  prompt: string;
+}
+
+// License state (stored in chrome.storage.local only)
+export interface LicenseState {
+  licenseKey: string;
+  isValid: boolean;
+  checkedAt: number;
+}
+
 // Extension configuration type
 export interface ExtensionConfig {
   enabled: boolean;
   prompts: PromptConfig;
+  comboPrompts: ComboBinding[];
   version: string;
   isPro: boolean;
 }
