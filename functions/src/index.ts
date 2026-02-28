@@ -10,6 +10,7 @@ const GUMROAD_VERIFY_URL = 'https://api.gumroad.com/v2/licenses/verify';
 export const verifyLicense = onRequest(
   { cors: true },
   async (req, res) => {
+    console.log('[ArrowPrompt] verifyLicense request received', { method: req.method });
     if (req.method !== 'POST') {
       res.status(405).json({ valid: false, message: 'Method not allowed' });
       return;
@@ -31,14 +32,17 @@ export const verifyLicense = onRequest(
     const licenseKey =
       typeof body.licenseKey === 'string' ? body.licenseKey.trim() : '';
 
+    console.log('[ArrowPrompt] licenseKey length:', licenseKey?.length ?? 0);
+
     if (!licenseKey || licenseKey.length < 4) {
       res.status(400).json({ valid: false, message: 'Invalid license key format' });
       return;
     }
 
     const productId = process.env.GUMROAD_PRODUCT_ID;
+    console.log('[ArrowPrompt] GUMROAD_PRODUCT_ID set:', !!productId, 'length:', productId?.length ?? 0);
     if (!productId) {
-      console.error('GUMROAD_PRODUCT_ID not set');
+      console.error('[ArrowPrompt] GUMROAD_PRODUCT_ID not set');
       res.status(500).json({ valid: false, message: 'Server configuration error' });
       return;
     }
@@ -59,22 +63,28 @@ export const verifyLicense = onRequest(
         success?: boolean;
         purchase?: { test?: boolean };
         uses?: number;
+        message?: string;
       };
 
+      console.log('[ArrowPrompt] Gumroad response:', { success: data.success, test: data.purchase?.test, msg: data.message });
+
       if (!data.success) {
+        console.log('[ArrowPrompt] Returning: License key invalid or expired (Gumroad success=false)');
         res.status(200).json({ valid: false, message: 'License key invalid or expired' });
         return;
       }
 
       // Optionally reject test purchases in production
       if (data.purchase?.test === true) {
+        console.log('[ArrowPrompt] Returning: Test license rejected');
         res.status(200).json({ valid: false, message: 'Test licenses are not valid for activation' });
         return;
       }
 
+      console.log('[ArrowPrompt] Returning: valid');
       res.status(200).json({ valid: true });
     } catch (err) {
-      console.error('Gumroad verify error:', err);
+      console.error('[ArrowPrompt] Gumroad verify error:', err);
       res.status(500).json({ valid: false, message: 'Verification failed' });
     }
   }

@@ -86,6 +86,8 @@ const SITE_CONFIGS: Record<string, SiteConfig> = {
 let isEnabled = true;
 let currentConfig: ExtensionConfig = DEFAULT_CONFIG;
 const keysHeld = new Set<ArrowKey>();
+let singleKeyTimerId: ReturnType<typeof setTimeout> | null = null;
+const COMBO_DELAY_MS = 280;
 
 function sortedKeys(set: Set<ArrowKey>): ArrowKey[] {
   return [...set].sort();
@@ -495,20 +497,41 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   keysHeld.add(event.key as ArrowKey);
 
-  let prompt: string | null = null;
   if (currentConfig.isPro && keysHeld.size >= 2) {
+    if (singleKeyTimerId !== null) {
+      clearTimeout(singleKeyTimerId);
+      singleKeyTimerId = null;
+    }
     const combo = findComboMatch(sortedKeys(keysHeld));
-    if (combo && combo.prompt) prompt = combo.prompt;
+    if (combo && combo.prompt) {
+      const inserted = insertTextToInput(inputElement, combo.prompt, config);
+      if (inserted) {
+        console.log('[ArrowPrompt] Combo prompt inserted:', combo.prompt);
+        showFeedback(event.key as ArrowKey, combo.prompt, inputElement);
+      }
+      return;
+    }
   }
-  if (!prompt && keysHeld.size === 1) {
-    prompt = currentConfig.prompts[event.key as ArrowKey] || null;
-  }
-  if (!prompt) return;
 
-  const inserted = insertTextToInput(inputElement, prompt, config);
-  if (inserted) {
-    console.log('[ArrowPrompt] Prompt inserted:', prompt);
-    showFeedback(event.key as ArrowKey, prompt, inputElement);
+  if (keysHeld.size === 1) {
+    if (singleKeyTimerId !== null) clearTimeout(singleKeyTimerId);
+    singleKeyTimerId = setTimeout(() => {
+      singleKeyTimerId = null;
+      if (keysHeld.size !== 1) return;
+      const el = getInputElement();
+      const cfg = getCurrentSiteConfig();
+      if (!el || !cfg) return;
+      const key = sortedKeys(keysHeld)[0];
+      const prompt = currentConfig.prompts[key] || null;
+      if (prompt) {
+        const inserted = insertTextToInput(el, prompt, cfg);
+        if (inserted) {
+          console.log('[ArrowPrompt] Prompt inserted:', prompt);
+          showFeedback(key, prompt, el);
+        }
+      }
+    }, COMBO_DELAY_MS);
+    return;
   }
 }
 
@@ -661,7 +684,24 @@ function init(): void {
       if (changes.enabled !== undefined) isEnabled = changes.enabled.newValue;
       if (changes.prompts !== undefined) currentConfig.prompts = changes.prompts.newValue;
       if (changes.isPro !== undefined) currentConfig.isPro = changes.isPro.newValue;
-      if (changes.comboPrompts !== undefined) currentConfig.comboPrompts = Array.isArray(changes.comboPrompts.newValue) ? changes.comboPrompts.newValue : [];
+      if (changes.comboPrompts !== undefined) {
+        loadConfig().then((config) => {
+          currentConfig.comboPrompts = Array.isArray(config.comboPrompts) ? config.comboPrompts : [];
+        });
+      }
+    }
+  });
+
+  chrome.runtime.onMessage.addListener((msg: { type?: string }) => {
+    if (msg?.type === 'arrowprompt-reload-config') {
+      loadConfig().then((config) => {
+        currentConfig = {
+          ...DEFAULT_CONFIG,
+          ...config,
+          comboPrompts: Array.isArray(config.comboPrompts) ? config.comboPrompts : []
+        };
+        isEnabled = config.enabled;
+      });
     }
   });
   function handleKeyUp(e: KeyboardEvent): void {

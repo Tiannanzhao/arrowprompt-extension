@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StorageManager } from '../utils/storage';
 import { ExtensionConfig, ComboBinding, ArrowKey } from '../utils/types';
-import { ARROW_KEYS } from '../utils/constants';
+import { VERIFY_LICENSE_URL, GUMROAD_PRODUCT_URL, ARROW_KEYS } from '../utils/constants';
 import './Popup.css';
+
+function notifyContentToReloadConfig(): void {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]?.id) {
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'arrowprompt-reload-config' }).catch(() => {});
+    }
+  });
+}
 
 const ARROW_LABELS: Record<ArrowKey, string> = {
   ArrowUp: '↑',
@@ -17,12 +25,21 @@ function comboKeysToLabel(keys: ArrowKey[]): string {
 
 const Popup: React.FC = () => {
   const [config, setConfig] = useState<ExtensionConfig | null>(null);
+  const [licenseInput, setLicenseInput] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const [recordingComboId, setRecordingComboId] = useState<string | null>(null);
   const [recordingKeys, setRecordingKeys] = useState<ArrowKey[]>([]);
 
   const loadConfig = useCallback(async () => {
     const loaded = await StorageManager.loadConfig();
-    setConfig(loaded);
+    const license = await StorageManager.getLicenseState();
+    if (license?.isValid && !loaded.isPro) {
+      await StorageManager.saveConfig({ isPro: true });
+      setConfig({ ...loaded, isPro: true });
+    } else {
+      setConfig(loaded);
+    }
   }, []);
 
   useEffect(() => {
@@ -35,12 +52,42 @@ const Popup: React.FC = () => {
     setConfig({ ...config, enabled: newEnabled });
   };
 
-  const handleTryStandard = async () => {
-    await StorageManager.saveConfig({ isPro: true });
-    await loadConfig();
+  const handleVerifyLicense = async () => {
+    const key = licenseInput.trim();
+    if (!key) {
+      setVerifyError('Enter your license key');
+      return;
+    }
+    setVerifying(true);
+    setVerifyError(null);
+    try {
+      const res = await fetch(VERIFY_LICENSE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ licenseKey: key })
+      });
+      const data = (await res.json()) as { valid?: boolean; message?: string };
+      if (data.valid) {
+        await StorageManager.setLicenseState({
+          licenseKey: key,
+          isValid: true,
+          checkedAt: Date.now()
+        });
+        await StorageManager.saveConfig({ isPro: true });
+        setLicenseInput('');
+        await loadConfig();
+      } else {
+        setVerifyError(data.message || 'Invalid license key');
+      }
+    } catch (e) {
+      setVerifyError('Verification failed. Check your connection.');
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const handleDeactivate = async () => {
+    await StorageManager.clearLicense();
     await StorageManager.saveConfig({ isPro: false });
     await loadConfig();
   };
@@ -56,6 +103,7 @@ const Popup: React.FC = () => {
     const next = config.comboPrompts.map((c) => (c.id === id ? { ...c, prompt } : c));
     await StorageManager.updateComboPrompts(next);
     setConfig({ ...config, comboPrompts: next });
+    notifyContentToReloadConfig();
   };
 
   const handleAddCombo = async () => {
@@ -68,6 +116,7 @@ const Popup: React.FC = () => {
     const next = [...config.comboPrompts, newCombo];
     await StorageManager.updateComboPrompts(next);
     setConfig({ ...config, comboPrompts: next });
+    notifyContentToReloadConfig();
     setRecordingComboId(newCombo.id);
     setRecordingKeys([]);
   };
@@ -77,6 +126,7 @@ const Popup: React.FC = () => {
     const next = config.comboPrompts.filter((c) => c.id !== id);
     await StorageManager.updateComboPrompts(next);
     setConfig({ ...config, comboPrompts: next });
+    notifyContentToReloadConfig();
     if (recordingComboId === id) setRecordingComboId(null);
   };
 
@@ -86,7 +136,10 @@ const Popup: React.FC = () => {
       const next = config.comboPrompts.map((c) =>
         c.id === id ? { ...c, keys: [...keys].sort() } : c
       );
-      StorageManager.updateComboPrompts(next).then(() => setConfig({ ...config, comboPrompts: next }));
+      StorageManager.updateComboPrompts(next).then(() => {
+        setConfig({ ...config, comboPrompts: next });
+        notifyContentToReloadConfig();
+      });
       setRecordingComboId(null);
       setRecordingKeys([]);
     },
@@ -120,7 +173,7 @@ const Popup: React.FC = () => {
         </label>
       </div>
 
-      {/* Standard mode */}
+      {/* License / Standard */}
       <div className="license-section">
         {config.isPro ? (
           <div className="standard-badge-row">
@@ -131,9 +184,31 @@ const Popup: React.FC = () => {
           </div>
         ) : (
           <div className="license-form">
-            <button type="button" className="btn-try-standard" onClick={handleTryStandard}>
-              Try Standard
+            <input
+              type="text"
+              className="license-input"
+              placeholder="License key"
+              value={licenseInput}
+              onChange={(e) => setLicenseInput(e.target.value)}
+              disabled={verifying}
+            />
+            <button
+              type="button"
+              className="btn-verify"
+              onClick={handleVerifyLicense}
+              disabled={verifying}
+            >
+              {verifying ? 'Verifying…' : 'Verify'}
             </button>
+            {verifyError && <div className="verify-error">{verifyError}</div>}
+            <a
+              href={GUMROAD_PRODUCT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="buy-standard-link"
+            >
+              Buy Standard ($2.99)
+            </a>
           </div>
         )}
       </div>
@@ -158,13 +233,23 @@ const Popup: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="prompt-list">
-              <PromptItem icon="↑" text={config.prompts.ArrowUp} />
+            <div className="prompt-list editable">
+              {(['ArrowUp', 'ArrowLeft'] as const).map((key) => (
+                <div key={key} className="prompt-item editable">
+                  <span className="key">{ARROW_LABELS[key]}</span>
+                  <input
+                    type="text"
+                    className="prompt-input"
+                    value={config.prompts[key]}
+                    onChange={(e) => handlePromptChange(key, e.target.value)}
+                    onBlur={(e) => handlePromptChange(key, e.target.value)}
+                  />
+                </div>
+              ))}
               <PromptItem icon="↓" text={config.prompts.ArrowDown} />
-              <PromptItem icon="←" text={config.prompts.ArrowLeft} />
               <PromptItem icon="→" text={config.prompts.ArrowRight} />
             </div>
-            <p className="upgrade-hint">Upgrade to Standard to customize prompts and add combo keys.</p>
+            <p className="upgrade-hint">Upgrade to Standard to customize ↓→ and add combo keys.</p>
           </>
         )}
       </div>

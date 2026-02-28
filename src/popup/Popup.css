@@ -160,19 +160,40 @@ input:checked + .slider:before {
   gap: 8px;
 }
 
-.btn-try-standard {
-  padding: 8px 16px;
+.license-input {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.btn-verify {
+  padding: 8px 12px;
   font-size: 13px;
   background: #1a73e8;
   color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-weight: 500;
 }
 
-.btn-try-standard:hover {
+.btn-verify:hover:not(:disabled) {
   background: #1557b0;
+}
+
+.btn-verify:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.verify-error {
+  font-size: 12px;
+  color: #c62828;
+}
+
+.buy-standard-link {
+  font-size: 12px;
+  color: #1a73e8;
 }
 
 .prompt-section,
