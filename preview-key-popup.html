@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArrowPrompt — 按键浮层预览</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; background: #f0f0f0; }
+    h1 { font-size: 18px; }
+    .preview-box { position: fixed; right: 1%; bottom: 1%; z-index: 999999; }
+    .note { margin-top: 120px; font-size: 13px; color: #666; max-width: 400px; }
+  </style>
+</head>
+<body>
+  <h1>⌨️ 按下箭头键时出现的浮层预览</h1>
+  <p class="note">下方右下角即实际在 Claude / ChatGPT 等页面按下 ↑↓←→ 时出现的反馈浮层。文案最多约 <strong>12–15 个英文字母</strong>能完整显示（当前为 12.14px、单行不换行，按钮宽约 112px），更长会溢出。</p>
+
+  <div class="preview-box" id="feedback-host"></div>
+
+  <script>
+    const ARROWUP_SHADOW_CSS = `
+  :host { display: inline-block; pointer-events: none; box-sizing: border-box; }
+  .arrowprompt-figma-outer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 3.54px;
+    gap: 2.02px;
+    position: relative;
+    background: linear-gradient(180deg, #E9E9E9 0%, #E9E9E9 0.01%, #FFFFFF 100%);
+    border-radius: 13.66px;
+    height: 75.43px;
+    box-sizing: border-box;
+  }
+  .arrowprompt-neo-button {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8.1px;
+    width: 112.29px;
+    height: 68.35px;
+    padding: 4px;
+    border: none;
+    cursor: default;
+    font: inherit;
+    background: linear-gradient(180deg, #F4F4F4 0%, #FEFEFE 100%);
+    box-shadow: 0px 0px 0.22px 0.22px rgba(0, 0, 0, 0.07), 0px 0px 0.22px 0.67px rgba(0, 0, 0, 0.05), 0px 2.7px 2.92px -1.35px rgba(0, 0, 0, 0.25), 0px 0.9px 3.6px 0.9px rgba(0, 0, 0, 0.12);
+    border-radius: 10.12px;
+  }
+  .arrowprompt-neo-button svg { flex: none; display: block; }
+  .arrowprompt-button-text {
+    font-family: 'Product Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 400;
+    font-size: 12.14px;
+    line-height: 110%;
+    color: #06071A;
+    flex: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 104.29px;
+  }
+  .arrowprompt-neo-button-row .arrowprompt-button-text {
+    max-width: 120px;
+  }
+  .arrowprompt-neo-button-row {
+    flex-direction: row;
+    width: auto;
+    min-width: 112.29px;
+    height: 68.35px;
+  }
+  .arrowprompt-figma-outer[data-key="ArrowRight"] {
+    width: auto;
+    height: auto;
+    min-width: 112.29px;
+  }
+  @keyframes arrowprompt-slideIn {
+    from { transform: translateY(6px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+`;
+    document.head.appendChild(document.createElement('style')).textContent = `
+      .arrowprompt-feedback { animation: arrowprompt-slideIn 0.25s ease; }
+      @keyframes arrowprompt-slideIn {
+        from { transform: translateY(6px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    `;
+    const upArrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+  <circle cx="13" cy="2.60001" r="2.60001" fill="#A8A8A8"/>
+  <circle cx="13" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+  <circle cx="13" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+  <circle cx="13" cy="18.2001" r="2.60001" fill="#A8A8A8"/>
+  <circle cx="13" cy="23.4001" r="2.60001" fill="#A8A8A8"/>
+  <circle cx="7.79996" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+  <circle cx="23.4001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+  <circle cx="2.60001" cy="13.0002" r="2.60001" fill="#A8A8A8"/>
+  <circle cx="18.2" cy="7.79996" r="2.60001" fill="#A8A8A8"/>
+</svg>`;
+    const label = 'Explain this code';
+    const html = `
+    <button type="button" class="arrowprompt-neo-button">
+      ${upArrowSvg}
+      <span class="arrowprompt-button-text">${label}</span>
+    </button>
+    `;
+    const host = document.getElementById('feedback-host');
+    const wrap = document.createElement('div');
+    wrap.className = 'arrowprompt-feedback';
+    const sr = wrap.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = ARROWUP_SHADOW_CSS;
+    sr.appendChild(style);
+    const inner = document.createElement('div');
+    inner.className = 'arrowprompt-figma-outer';
+    inner.setAttribute('data-key', 'ArrowUp');
+    inner.innerHTML = html;
+    sr.appendChild(inner);
+    wrap.style.animation = 'arrowprompt-slideIn 0.25s ease';
+    host.appendChild(wrap);
+  </script>
+</body>
+</html>

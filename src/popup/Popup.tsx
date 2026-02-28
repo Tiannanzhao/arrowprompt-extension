@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StorageManager } from '../utils/storage';
 import { ExtensionConfig, ComboBinding, ArrowKey } from '../utils/types';
-import { VERIFY_LICENSE_URL, GUMROAD_PRODUCT_URL, ARROW_KEYS } from '../utils/constants';
+import { ARROW_KEYS } from '../utils/constants';
 import './Popup.css';
 
 const ARROW_LABELS: Record<ArrowKey, string> = {
@@ -17,21 +17,12 @@ function comboKeysToLabel(keys: ArrowKey[]): string {
 
 const Popup: React.FC = () => {
   const [config, setConfig] = useState<ExtensionConfig | null>(null);
-  const [licenseInput, setLicenseInput] = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
   const [recordingComboId, setRecordingComboId] = useState<string | null>(null);
   const [recordingKeys, setRecordingKeys] = useState<ArrowKey[]>([]);
 
   const loadConfig = useCallback(async () => {
     const loaded = await StorageManager.loadConfig();
-    const license = await StorageManager.getLicenseState();
-    if (license?.isValid && !loaded.isPro) {
-      await StorageManager.saveConfig({ isPro: true });
-      setConfig({ ...loaded, isPro: true });
-    } else {
-      setConfig(loaded);
-    }
+    setConfig(loaded);
   }, []);
 
   useEffect(() => {
@@ -44,42 +35,12 @@ const Popup: React.FC = () => {
     setConfig({ ...config, enabled: newEnabled });
   };
 
-  const handleVerifyLicense = async () => {
-    const key = licenseInput.trim();
-    if (!key) {
-      setVerifyError('Enter your license key');
-      return;
-    }
-    setVerifying(true);
-    setVerifyError(null);
-    try {
-      const res = await fetch(VERIFY_LICENSE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ licenseKey: key })
-      });
-      const data = (await res.json()) as { valid?: boolean; message?: string };
-      if (data.valid) {
-        await StorageManager.setLicenseState({
-          licenseKey: key,
-          isValid: true,
-          checkedAt: Date.now()
-        });
-        await StorageManager.saveConfig({ isPro: true });
-        setLicenseInput('');
-        await loadConfig();
-      } else {
-        setVerifyError(data.message || 'Invalid license key');
-      }
-    } catch (e) {
-      setVerifyError('Verification failed. Check your connection.');
-    } finally {
-      setVerifying(false);
-    }
+  const handleTryStandard = async () => {
+    await StorageManager.saveConfig({ isPro: true });
+    await loadConfig();
   };
 
   const handleDeactivate = async () => {
-    await StorageManager.clearLicense();
     await StorageManager.saveConfig({ isPro: false });
     await loadConfig();
   };
@@ -159,7 +120,7 @@ const Popup: React.FC = () => {
         </label>
       </div>
 
-      {/* License / Standard */}
+      {/* Standard mode */}
       <div className="license-section">
         {config.isPro ? (
           <div className="standard-badge-row">
@@ -170,31 +131,9 @@ const Popup: React.FC = () => {
           </div>
         ) : (
           <div className="license-form">
-            <input
-              type="text"
-              className="license-input"
-              placeholder="License key"
-              value={licenseInput}
-              onChange={(e) => setLicenseInput(e.target.value)}
-              disabled={verifying}
-            />
-            <button
-              type="button"
-              className="btn-verify"
-              onClick={handleVerifyLicense}
-              disabled={verifying}
-            >
-              {verifying ? 'Verifying…' : 'Verify'}
+            <button type="button" className="btn-try-standard" onClick={handleTryStandard}>
+              Try Standard
             </button>
-            {verifyError && <div className="verify-error">{verifyError}</div>}
-            <a
-              href={GUMROAD_PRODUCT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="buy-standard-link"
-            >
-              Buy Standard ($2.99)
-            </a>
           </div>
         )}
       </div>

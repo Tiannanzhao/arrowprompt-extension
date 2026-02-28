@@ -15,10 +15,21 @@ export const verifyLicense = onRequest(
       return;
     }
 
+    // v2 onRequest does not auto-parse JSON; body may be string or Buffer
+    let body: { licenseKey?: string } = {};
+    if (typeof req.body === 'object' && req.body !== null && !Buffer.isBuffer(req.body)) {
+      body = req.body;
+    } else if (typeof req.body === 'string' || Buffer.isBuffer(req.body)) {
+      try {
+        body = JSON.parse(typeof req.body === 'string' ? req.body : req.body.toString()) ?? {};
+      } catch {
+        res.status(400).json({ valid: false, message: 'Invalid request body' });
+        return;
+      }
+    }
+
     const licenseKey =
-      typeof req.body?.licenseKey === 'string'
-        ? req.body.licenseKey.trim()
-        : '';
+      typeof body.licenseKey === 'string' ? body.licenseKey.trim() : '';
 
     if (!licenseKey || licenseKey.length < 4) {
       res.status(400).json({ valid: false, message: 'Invalid license key format' });

@@ -177,7 +177,8 @@ function getInputElement(): HTMLElement | null {
 
   let el = searchInDoc(document);
   if (el) return el;
-  if (isChatGPT) {
+  const searchIframes = isChatGPT || hostname.includes('perplexity.ai');
+  if (searchIframes) {
     for (const doc of getSearchDocuments()) {
       if (doc === document) continue;
       el = searchInDoc(doc);
@@ -194,58 +195,105 @@ function getInputType(element: HTMLElement): 'contenteditable' | 'textarea' {
   return 'textarea';
 }
 
-// Check if input is empty
-function isInputEmpty(element: HTMLElement, _config: SiteConfig): boolean {
-  const inputType = getInputType(element);
-  if (inputType === 'contenteditable') {
-    const text = element.textContent || element.innerText || '';
-    return text.trim() === '';
-  } else {
-    const value = (element as HTMLTextAreaElement).value || '';
-    return value.trim() === '';
-  }
-}
-
-// Insert text into input
+// Append text to input (supports multiple appends; newline before text when content exists)
 function insertTextToInput(element: HTMLElement, text: string, _config: SiteConfig): boolean {
   if (!element) return false;
+
+  const isPerplexity = window.location.hostname.includes('perplexity.ai');
+
+  // Perplexity: re-query current input in next tick and defer write so React state can settle.
+  if (isPerplexity) {
+    setTimeout(() => {
+      const target = getInputElement() ?? element;
+      if (!target) return;
+      target.focus();
+      const inputType = getInputType(target);
+      if (inputType === 'contenteditable') {
+        const sel = window.getSelection();
+        if (sel) {
+          const range = document.createRange();
+          range.selectNodeContents(target);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          const current = (target.textContent || target.innerText || '').trimEnd();
+          const toInsert = current.length > 0 ? '\n' + text : text;
+          const inserted = document.execCommand('insertText', false, toInsert);
+          if (!inserted) {
+            const current = (target.textContent || target.innerText || '').trimEnd();
+            const toSet = current ? current + '\n' + text : text;
+            target.textContent = toSet;
+            const range2 = document.createRange();
+            range2.selectNodeContents(target);
+            range2.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(range2);
+            target.dispatchEvent(new InputEvent('input', {
+              bubbles: true,
+              cancelable: true,
+              inputType: 'insertText',
+              data: text
+            }));
+          }
+        }
+      } else if (inputType === 'textarea') {
+        const textarea = target as HTMLTextAreaElement;
+        const current = textarea.value || '';
+        const toSet = current.length > 0 ? current + '\n' + text : text;
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+        if (setter) setter.call(textarea, toSet);
+        else textarea.value = toSet;
+        textarea.setSelectionRange(toSet.length, toSet.length);
+        target.dispatchEvent(new InputEvent('input', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertText',
+          data: text
+        }));
+      }
+    }, 0);
+    return true;
+  }
 
   element.focus();
 
   const inputType = getInputType(element);
+  const currentRaw = inputType === 'contenteditable'
+    ? (element.textContent || element.innerText || '').trimEnd()
+    : (element as HTMLTextAreaElement).value || '';
   if (inputType === 'contenteditable') {
-    element.innerHTML = '';
-    element.textContent = text;
-    
-    // Move cursor to end
+    const current = currentRaw;
+    const toSet = current ? current + '\n' + text : text;
+    element.textContent = toSet;
+
     const range = document.createRange();
     const sel = window.getSelection();
     range.selectNodeContents(element);
     range.collapse(false);
     sel?.removeAllRanges();
     sel?.addRange(range);
-    
-    // Trigger input event
-    element.dispatchEvent(new InputEvent('input', { 
-      bubbles: true, 
+
+    element.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
       cancelable: true,
       inputType: 'insertText',
       data: text
     }));
   } else {
     const textarea = element as HTMLTextAreaElement;
-    
+    const current = textarea.value || '';
+    const toInsert = current.length > 0 ? '\n' + text : text;
+    const toSet = current + toInsert;
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
       window.HTMLTextAreaElement.prototype,
       'value'
     )?.set;
-    
     if (nativeInputValueSetter) {
-      nativeInputValueSetter.call(textarea, text);
+      nativeInputValueSetter.call(textarea, toSet);
     } else {
-      textarea.value = text;
+      textarea.value = toSet;
     }
-    
+    textarea.setSelectionRange(toSet.length, toSet.length);
     element.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
@@ -253,72 +301,6 @@ function insertTextToInput(element: HTMLElement, text: string, _config: SiteConf
   element.dispatchEvent(new Event('keyup', { bubbles: true }));
 
   return true;
-}
-
-// Click send button (tries each selector; for ChatGPT also searches Shadow DOM and same doc as inputEl)
-function clickSendButton(config: SiteConfig, inputDoc?: Document): boolean {
-  const doc = inputDoc ?? document;
-  const hostname = window.location.hostname;
-  const isChatGPT = hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com');
-  const selectors = config.sendButtonSelector.split(',').map(s => s.trim());
-  const searchDoc = (d: Document): HTMLButtonElement | null => {
-    for (const sel of selectors) {
-      let btn = d.querySelector(sel) as HTMLButtonElement | null;
-      if (!btn && d.body && isChatGPT) btn = querySelectorIncludingShadowRoots(d.body, sel) as HTMLButtonElement | null;
-      if (btn && !btn.disabled) return btn;
-    }
-    return null;
-  };
-  let btn = searchDoc(doc);
-  if (btn) {
-    btn.click();
-    return true;
-  }
-  if (isChatGPT && doc === document) {
-    for (const d of getSearchDocuments()) {
-      if (d === document) continue;
-      btn = searchDoc(d);
-      if (btn) {
-        btn.click();
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-// Try to send: click send button; if none found (or on Perplexity), use Enter on input
-function triggerSend(config: SiteConfig, inputElement: HTMLElement): void {
-  const hostname = window.location.hostname;
-  const isPerplexity = hostname.includes('perplexity.ai');
-  // #region agent log
-  const _h5b = {location:'content.ts:triggerSend',message:'send path',data:{hostname,isPerplexity},hypothesisId:'H5'};
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h5b,timestamp:Date.now()})}).catch(()=>{});
-  console.log('[ArrowPrompt:debug]', _h5b);
-  // #endregion agent log
-  const sendWithEnter = (): void => {
-    inputElement.focus();
-    inputElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-    inputElement.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-    // #region agent log
-    const _h5c = {location:'content.ts:triggerSend:sendWithEnter',message:'enter dispatched',data:{tagName:inputElement.tagName},hypothesisId:'H5'};
-    fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h5c,timestamp:Date.now()})}).catch(()=>{});
-    console.log('[ArrowPrompt:debug]', _h5c);
-    // #endregion agent log
-  };
-  if (isPerplexity) {
-    // Perplexity: prefer Enter (their send control is often not a standard button)
-    setTimeout(sendWithEnter, 220);
-    return;
-  }
-  const clicked = clickSendButton(config, inputElement.ownerDocument);
-  // #region agent log
-  const _h5d = {location:'content.ts:triggerSend',message:'button click result',data:{clicked},hypothesisId:'H5'};
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h5d,timestamp:Date.now()})}).catch(()=>{});
-  console.log('[ArrowPrompt:debug]', _h5d);
-  // #endregion agent log
-  if (clicked) return;
-  setTimeout(sendWithEnter, 200);
 }
 
 // Figma nev-flynn Button: labels per key
@@ -353,7 +335,7 @@ const ARROWUP_SHADOW_CSS = `
     gap: 8.1px;
     width: 112.29px;
     height: 68.35px;
-    padding: 10.63px 12.14px;
+    padding: 4px;
     border: none;
     cursor: default;
     font: inherit;
@@ -370,6 +352,12 @@ const ARROWUP_SHADOW_CSS = `
     color: #06071A;
     flex: none;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 104.29px;
+  }
+  .arrowprompt-neo-button-row .arrowprompt-button-text {
+    max-width: 120px;
   }
   .arrowprompt-neo-button-row {
     flex-direction: row;
@@ -488,43 +476,16 @@ function handleKeyDown(event: KeyboardEvent): void {
     console.log('[ArrowPrompt] Extension disabled');
     return;
   }
-  // #region agent log
-  console.log('[ArrowPrompt:debug] handleKeyDown', event.key, window.location.hostname);
-  // #endregion agent log
-
   const config = getCurrentSiteConfig();
-  // #region agent log
-  const _h1 = {location:'content.ts:handleKeyDown',message:'site check',data:{hostname:window.location.hostname,hasConfig:!!config,key:event.key},hypothesisId:'H1'};
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h1,timestamp:Date.now()})}).catch(()=>{});
-  console.log('[ArrowPrompt:debug]', _h1);
-  // #endregion agent log
   if (!config) {
     console.log('[ArrowPrompt] Unsupported website');
     return;
   }
 
   const inputElement = getInputElement();
-  // #region agent log
-  const _h2 = {location:'content.ts:handleKeyDown',message:'input element',data:{hasInput:!!inputElement,inputSelector:config.inputSelector,tagName:inputElement?.tagName},hypothesisId:'H2'};
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h2,timestamp:Date.now()})}).catch(()=>{});
-  console.log('[ArrowPrompt:debug]', _h2);
-  // #endregion agent log
   if (!inputElement) {
     console.log('[ArrowPrompt] Input field not found');
     return;
-  }
-
-  const isEmpty = isInputEmpty(inputElement, config);
-  const valuePreview = getInputType(inputElement) === 'textarea'
-    ? (inputElement as HTMLTextAreaElement).value?.slice(0, 80) ?? ''
-    : (inputElement.textContent || inputElement.innerText || '').slice(0, 80);
-  // #region agent log
-  const _h3 = {location:'content.ts:handleKeyDown',message:'input empty check',data:{isEmpty,tagName:inputElement.tagName,valueLength:valuePreview.length,valuePreview},hypothesisId:'H3'};
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h3,timestamp:Date.now()})}).catch(()=>{});
-  console.log('[ArrowPrompt:debug]', _h3);
-  // #endregion agent log
-  if (!isEmpty) {
-    return; // Don't intercept if there's content
   }
 
   console.log('[ArrowPrompt] Arrow key detected:', event.key);
@@ -545,21 +506,9 @@ function handleKeyDown(event: KeyboardEvent): void {
   if (!prompt) return;
 
   const inserted = insertTextToInput(inputElement, prompt, config);
-  // #region agent log
-  const _h4 = {location:'content.ts:handleKeyDown',message:'insert result',data:{inserted,key:event.key},hypothesisId:'H4'};
-  fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h4,timestamp:Date.now()})}).catch(()=>{});
-  console.log('[ArrowPrompt:debug]', _h4);
-  // #endregion agent log
   if (inserted) {
     console.log('[ArrowPrompt] Prompt inserted:', prompt);
     showFeedback(event.key as ArrowKey, prompt, inputElement);
-    // #region agent log
-    const sendBtn = document.querySelector(config.sendButtonSelector);
-    const _h5a = {location:'content.ts:handleKeyDown',message:'send button',data:{sendButtonFound:!!sendBtn,sendSelector:config.sendButtonSelector},hypothesisId:'H5'};
-    fetch('http://127.0.0.1:7242/ingest/c99a099a-1890-430b-b9ee-af178d90891f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._h5a,timestamp:Date.now()})}).catch(()=>{});
-    console.log('[ArrowPrompt:debug]', _h5a);
-    // #endregion agent log
-    setTimeout(() => triggerSend(config, inputElement), 200);
   }
 }
 
@@ -698,6 +647,15 @@ function init(): void {
   addStyles();
   document.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('keydown', handleKeyDown, true);
+  const hostname = window.location.hostname;
+  if (hostname.includes('perplexity.ai') || hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com')) {
+    for (const doc of getSearchDocuments()) {
+      if (doc !== document) {
+        doc.addEventListener('keydown', handleKeyDown, true);
+        doc.defaultView?.addEventListener?.('keydown', handleKeyDown, true);
+      }
+    }
+  }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync') {
       if (changes.enabled !== undefined) isEnabled = changes.enabled.newValue;
@@ -711,6 +669,24 @@ function init(): void {
   }
   document.addEventListener('keyup', handleKeyUp, true);
   window.addEventListener('keyup', handleKeyUp, true);
+  if (hostname.includes('perplexity.ai') || hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com')) {
+    for (const doc of getSearchDocuments()) {
+      if (doc !== document) {
+        doc.addEventListener('keyup', handleKeyUp, true);
+        doc.defaultView?.addEventListener?.('keyup', handleKeyUp, true);
+      }
+    }
+    setTimeout(() => {
+      for (const doc of getSearchDocuments()) {
+        if (doc !== document) {
+          doc.addEventListener('keydown', handleKeyDown, true);
+          doc.addEventListener('keyup', handleKeyUp, true);
+          doc.defaultView?.addEventListener?.('keydown', handleKeyDown, true);
+          doc.defaultView?.addEventListener?.('keyup', handleKeyUp, true);
+        }
+      }
+    }, 2000);
+  }
 
   loadConfig().then((config) => {
     currentConfig = {

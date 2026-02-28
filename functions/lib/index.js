@@ -4,7 +4,7 @@ exports.verifyLicense = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const GUMROAD_VERIFY_URL = 'https://api.gumroad.com/v2/licenses/verify';
 /**
- * Verify ArrowPrompt Pro license key with Gumroad.
+ * Verify ArrowPrompt Standard license key with Gumroad.
  * Extension sends POST { licenseKey: string }; we call Gumroad and return { valid: boolean, message?: string }.
  * Set GUMROAD_PRODUCT_ID in Firebase config: firebase functions:config:set gumroad.product_id="YOUR_PRODUCT_ID"
  */
@@ -14,9 +14,21 @@ exports.verifyLicense = (0, https_1.onRequest)({ cors: true }, async (req, res) 
         res.status(405).json({ valid: false, message: 'Method not allowed' });
         return;
     }
-    const licenseKey = typeof ((_a = req.body) === null || _a === void 0 ? void 0 : _a.licenseKey) === 'string'
-        ? req.body.licenseKey.trim()
-        : '';
+    // v2 onRequest does not auto-parse JSON; body may be string or Buffer
+    let body = {};
+    if (typeof req.body === 'object' && req.body !== null && !Buffer.isBuffer(req.body)) {
+        body = req.body;
+    }
+    else if (typeof req.body === 'string' || Buffer.isBuffer(req.body)) {
+        try {
+            body = (_a = JSON.parse(typeof req.body === 'string' ? req.body : req.body.toString())) !== null && _a !== void 0 ? _a : {};
+        }
+        catch (_c) {
+            res.status(400).json({ valid: false, message: 'Invalid request body' });
+            return;
+        }
+    }
+    const licenseKey = typeof body.licenseKey === 'string' ? body.licenseKey.trim() : '';
     if (!licenseKey || licenseKey.length < 4) {
         res.status(400).json({ valid: false, message: 'Invalid license key format' });
         return;
