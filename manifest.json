@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ArrowPrompt - AI Coding Shortcuts",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "On Claude, ChatGPT, Perplexity & Gemini: press an arrow key (↑↓←→) in the empty chat box to insert and send a preset prompt.",
   "permissions": [
     "storage",

@@ -87,6 +87,7 @@ let isEnabled = true;
 let currentConfig: ExtensionConfig = DEFAULT_CONFIG;
 const keysHeld = new Set<ArrowKey>();
 let singleKeyTimerId: ReturnType<typeof setTimeout> | null = null;
+let pendingSingleKey: ArrowKey | null = null;
 const COMBO_DELAY_MS = 280;
 
 function sortedKeys(set: Set<ArrowKey>): ArrowKey[] {
@@ -504,6 +505,7 @@ function handleKeyDown(event: KeyboardEvent): void {
     }
     const combo = findComboMatch(sortedKeys(keysHeld));
     if (combo && combo.prompt) {
+      pendingSingleKey = null;
       const inserted = insertTextToInput(inputElement, combo.prompt, config);
       if (inserted) {
         console.log('[ArrowPrompt] Combo prompt inserted:', combo.prompt);
@@ -515,13 +517,16 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   if (keysHeld.size === 1) {
     if (singleKeyTimerId !== null) clearTimeout(singleKeyTimerId);
+    const keyToUse = event.key as ArrowKey;
+    pendingSingleKey = keyToUse;
     singleKeyTimerId = setTimeout(() => {
       singleKeyTimerId = null;
-      if (keysHeld.size !== 1) return;
+      const key = pendingSingleKey;
+      pendingSingleKey = null;
+      if (!key) return;
       const el = getInputElement();
       const cfg = getCurrentSiteConfig();
       if (!el || !cfg) return;
-      const key = sortedKeys(keysHeld)[0];
       const prompt = currentConfig.prompts[key] || null;
       if (prompt) {
         const inserted = insertTextToInput(el, prompt, cfg);

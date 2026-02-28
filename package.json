@@ -1,6 +1,6 @@
 {
   "name": "arrowprompt-extension",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "On Claude, ChatGPT, Perplexity & Gemini: press an arrow key (↑↓←→) in the empty chat box to insert and send a preset prompt.",
   "type": "module",
   "scripts": {

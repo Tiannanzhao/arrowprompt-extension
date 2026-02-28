@@ -96,6 +96,7 @@ const Popup: React.FC = () => {
     if (!config) return;
     await StorageManager.updatePrompts({ [key]: value });
     setConfig({ ...config, prompts: { ...config.prompts, [key]: value } });
+    notifyContentToReloadConfig();
   };
 
   const handleComboPromptChange = async (id: string, prompt: string) => {
